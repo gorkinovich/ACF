@@ -1,0 +1,135 @@
+--- **************************************************************************************
+--- * Anubis Programming Language
+--- * Copyright (c) 2014-2015 Gorka Suárez García
+--- *
+--- * Permission is hereby granted, free of charge, to any person obtaining a copy
+--- * of this software and associated documentation files (the "Software"), to deal
+--- * in the Software without restriction, including without limitation the rights
+--- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+--- * copies of the Software, and to permit persons to whom the Software is
+--- * furnished to do so, subject to the following conditions:
+--- *
+--- * The above copyright notice and this permission notice shall be included in
+--- * all copies or substantial portions of the Software.
+--- *
+--- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+--- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+--- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+--- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+--- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+--- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+--- * DEALINGS IN THE SOFTWARE.
+--- **************************************************************************************
+
+--- |************************************************************************************|
+--- | ANUBIS-SYNTAX-BASEXPR: This module contains the syntax of the expressions.         |
+--- |************************************************************************************|
+
+fmod ANUBIS-SYNTAX-BASEXPR is
+    protecting ANUBIS-SYNTAX-IDENTIFIER .
+
+    *** |================================================================================|
+    *** | Sorts                                                                          |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // A language has expressions to build the statements. And we'll have a lot of
+    --- // different types of expressions.
+    --- //--------------------------------------------------------------------------------
+
+    sorts Expression SequenceOfExpressions ValueExpression BasicValueExpression
+          BooleanExpression CharacterExpression NumericExpression IntegerExpression
+          RealExpression ReferenceValueExpression NullExpression FunctionExpression
+          ContainerExpression ObjectExpression TupleExpression ListExpression
+          StringExpression .
+
+    --- //--------------------------------------------------------------------------------
+    --- // We also have some special expressions to represent more complex ideas.
+    --- //--------------------------------------------------------------------------------
+
+    sorts VariableExpression ContainerAccessExpression CallFunctionExpression
+          MemberAccessExpression .
+
+    *** |================================================================================|
+    *** | Subsorts                                                                       |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // Many things are an expression, for example we have a sequence of expressions
+    --- // which is an expression itself, used to make a chain of sequences which is
+    --- // usefull to express something like a container of data, like a tuple or a list.
+    --- //
+    --- // In the other hand we can have an expression that represents a value of some
+    --- // kind, like a boolean, character, numeric or reference type. A "reference" type
+    --- // is just way to express a memory address where an object is stored. The null
+    --- // value just represents no memory address. The objects, tuples and lists are
+    --- // types of data stored in memory, all of them are objects, but as expressions
+    --- // are different stuff because each of them define a unique container structure.
+    --- // An "exception" to this rule is that a string is a type of list.
+    --- //--------------------------------------------------------------------------------
+
+    --- |*******************************************|
+    --- |                                           |
+    --- |   +----------> Expression                 |
+    --- |   |----------> SequenceOfExpressions      |
+    --- |   ·-+--------> ValueExpression            |
+    --- |     |-+------> BasicValueExpression       |
+    --- |     | |------> BooleanExpression          |
+    --- |     | |------> CharacterExpression        |
+    --- |     | ·-+----> NumericExpression          |
+    --- |     |   |----> IntegerExpression          |
+    --- |     |   ·----> RealExpression             |
+    --- |     ·-+------> ReferenceValueExpression   |
+    --- |       |------> NullExpression             |
+    --- |       |------> FunctionExpression         |
+    --- |       ·-+----> ContainerExpression        |
+    --- |         |----> ObjectExpression           |
+    --- |         |----> TupleExpression            |
+    --- |         ·-+--> ListExpression             |
+    --- |           ·--> StringExpression           |
+    --- |                                           |
+    --- |*******************************************|
+
+    subsort SequenceOfExpressions ValueExpression < Expression .
+    subsort BasicValueExpression ReferenceValueExpression TypeIdentifier < ValueExpression .
+    subsort BooleanExpression CharacterExpression NumericExpression < BasicValueExpression .
+    subsort IntegerExpression RealExpression < NumericExpression .
+    subsort NullExpression FunctionExpression ContainerExpression < ReferenceValueExpression .
+    subsort ObjectExpression TupleExpression ListExpression < ContainerExpression .
+    subsort StringExpression < ListExpression .
+
+    --- //--------------------------------------------------------------------------------
+    --- // We have a special type of expression a variable expression. This type does
+    --- // not represent only a variable in the code, which is represented with the
+    --- // identifiers, it also represents the returned values from a function call or
+    --- // a structure access (objects, list or tuples).
+    --- //--------------------------------------------------------------------------------
+
+    subsort Identifier CallFunctionExpression ContainerAccessExpression
+            MemberAccessExpression < VariableExpression < BooleanExpression
+            CharacterExpression IntegerExpression RealExpression NullExpression
+            FunctionExpression ObjectExpression TupleExpression ListExpression
+            StringExpression .
+
+    *** |================================================================================|
+    *** | Operators                                                                      |
+    *** |================================================================================|
+
+    --- |-----------------------------|
+    --- | Associativity:              |
+    --- | gather(E e) = left to right |
+    --- | gather(e E) = right to left |
+    --- |-----------------------------|
+
+    *** |================================================================================|
+    *** | Operators (Comma)                                                              |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // A sequence of expressions is 2 expressions separated with a comma.
+    --- //--------------------------------------------------------------------------------
+
+    op _`,_ : Expression Expression -> SequenceOfExpressions
+              [ctor prec 40 gather(E e) format (o o os o)] .
+
+endfm

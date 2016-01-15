@@ -1,0 +1,166 @@
+--- **************************************************************************************
+--- * Anubis Programming Language
+--- * Copyright (c) 2014-2015 Gorka Suárez García
+--- *
+--- * Permission is hereby granted, free of charge, to any person obtaining a copy
+--- * of this software and associated documentation files (the "Software"), to deal
+--- * in the Software without restriction, including without limitation the rights
+--- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+--- * copies of the Software, and to permit persons to whom the Software is
+--- * furnished to do so, subject to the following conditions:
+--- *
+--- * The above copyright notice and this permission notice shall be included in
+--- * all copies or substantial portions of the Software.
+--- *
+--- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+--- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+--- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+--- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+--- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+--- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+--- * DEALINGS IN THE SOFTWARE.
+--- **************************************************************************************
+
+--- |************************************************************************************|
+--- | ANUBIS-UTILITY-IDENTIFIER: This module contains utility operators.                 |
+--- |************************************************************************************|
+
+fmod ANUBIS-UTILITY-IDENTIFIER is
+    protecting QID .
+    protecting ANUBIS-UTILITY-STRING .
+
+    *** |================================================================================|
+    *** | Operators (Functions)                                                          |
+    *** |================================================================================|
+
+    op isReservedWord : Qid -> Bool .
+    op isReservedType : Qid -> Bool .
+    op isValidIdentifier : Qid -> Bool .
+    op isValidTypeIdentifier : Qid -> Bool .
+
+    op isReservedWord : String -> Bool .
+    op isReservedType : String -> Bool .
+
+    *** |================================================================================|
+    *** | Variables                                                                      |
+    *** |================================================================================|
+
+    var ID : Qid .
+    var S : String .
+
+    *** |================================================================================|
+    *** | Equations (Qid)                                                                |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // An identifier in the Anubis programming language is a sequence of characters
+    --- // that follows these simple rules:
+    --- // 1.- Contains letters, digits or the underscore symbol:
+    --- //     A-Z Ñ Á É Í Ó Ú a-z ñ á é í ó ú 0-9 _
+    --- // 2.- Must start with letter or underscore.
+    --- // 3.- Can't be a reserved word of the language.
+    --- //--------------------------------------------------------------------------------
+
+    eq isReservedWord(ID) = isReservedWord(string(ID)) .
+
+    eq isReservedType(ID) = isReservedType(string(ID)) .
+
+    ceq isValidIdentifier(ID) = (isUnderscore(first(S)) or isLetter(first(S))) and
+        containsOnlyULD(S) and (not isReservedWord(S)) and (not isReservedType(S))
+        if S := string(ID) .
+
+    ceq isValidTypeIdentifier(ID) = (isUnderscore(first(S)) or isLetter(first(S))) and
+        containsOnlyULD(S) and (not isReservedWord(S)) if S := string(ID) .
+
+    *** |================================================================================|
+    *** | Equations (String)                                                             |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // The Anubis programming language has some reserved words that are used to build
+    --- // the syntax of the language itself. It wouldn't be nice to make an identifier
+    --- // called "if" and screw all the code... and why anyone would like to do that? >_<
+    --- //--------------------------------------------------------------------------------
+
+    eq isReservedWord("") = true .
+
+    eq isReservedWord("not") = true .
+    eq isReservedWord("true") = true .
+    eq isReservedWord("false") = true .
+    eq isReservedWord("nil") = true .
+    eq isReservedWord("null") = true .
+
+    eq isReservedWord("new") = true .
+    eq isReservedWord("as") = true .
+    eq isReservedWord("is") = true .
+    eq isReservedWord("in") = true .
+
+    eq isReservedWord("and") = true .
+    eq isReservedWord("xor") = true .
+    eq isReservedWord("or") = true .
+
+    eq isReservedWord("const") = true .
+    eq isReservedWord("var") = true .
+    eq isReservedWord("alias") = true .
+
+    eq isReservedWord("if") = true .
+    eq isReservedWord("else") = true .
+    eq isReservedWord("switch") = true .
+    eq isReservedWord("case") = true .
+    eq isReservedWord("break") = true .
+    eq isReservedWord("default") = true .
+    eq isReservedWord("while") = true .
+    eq isReservedWord("do") = true .
+    eq isReservedWord("repeat") = true .
+    eq isReservedWord("until") = true .
+    eq isReservedWord("for") = true .
+    eq isReservedWord("try") = true .
+    eq isReservedWord("catch") = true .
+    eq isReservedWord("finally") = true .
+    eq isReservedWord("throw") = true .
+    eq isReservedWord("continue") = true .
+    eq isReservedWord("yield") = true .
+    eq isReservedWord("include") = true .
+
+    eq isReservedWord("func") = true .
+    eq isReservedWord("return") = true .
+    eq isReservedWord("ref") = true .
+
+    eq isReservedWord("class") = true .
+    eq isReservedWord("self") = true .
+    eq isReservedWord("base") = true .
+    eq isReservedWord("get") = true .
+    eq isReservedWord("set") = true .
+    eq isReservedWord("operator") = true .
+
+    eq isReservedWord(S) = false [owise] .
+
+    --- //--------------------------------------------------------------------------------
+    --- // In any kind of language we have 2 types of identifiers, those used to create
+    --- // new names for types and the ones used to give name to the variables, functions,
+    --- // properties, etcetera. So we to build this last type of identifiers, we'll have
+    --- // to check that some reserved types are not used as the name of a variable or
+    --- // any other crazy idea you're having right now.
+    --- //--------------------------------------------------------------------------------
+
+    eq isReservedType("") = true .
+
+    eq isReservedType("bool") = true .
+    eq isReservedType("char") = true .
+    eq isReservedType("integer") = true .
+    eq isReservedType("real") = true .
+
+    eq isReservedType("Bool") = true .
+    eq isReservedType("Char") = true .
+    eq isReservedType("Integer") = true .
+    eq isReservedType("Real") = true .
+    eq isReservedType("Object") = true .
+    eq isReservedType("Function") = true .
+    eq isReservedType("Tuple") = true .
+    eq isReservedType("List") = true .
+    eq isReservedType("String") = true .
+    eq isReservedType("Dynamic") = true .
+
+    eq isReservedType(S) = false [owise] .
+
+endfm

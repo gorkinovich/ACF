@@ -1,0 +1,159 @@
+--- **************************************************************************************
+--- * Anubis Programming Language
+--- * Copyright (c) 2014-2015 Gorka Suárez García
+--- *
+--- * Permission is hereby granted, free of charge, to any person obtaining a copy
+--- * of this software and associated documentation files (the "Software"), to deal
+--- * in the Software without restriction, including without limitation the rights
+--- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+--- * copies of the Software, and to permit persons to whom the Software is
+--- * furnished to do so, subject to the following conditions:
+--- *
+--- * The above copyright notice and this permission notice shall be included in
+--- * all copies or substantial portions of the Software.
+--- *
+--- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+--- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+--- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+--- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+--- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+--- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+--- * DEALINGS IN THE SOFTWARE.
+--- **************************************************************************************
+
+--- |************************************************************************************|
+--- | ANUBIS-MACHINE-AMBIT: This module represents an ambit of data in the machine.      |
+--- |************************************************************************************|
+
+fmod ANUBIS-MACHINE-AMBIT is
+    protecting ANUBIS-MACHINE-VALUE .
+
+    *** |================================================================================|
+    *** | Sorts                                                                          |
+    *** |================================================================================|
+
+    sorts Ambit AmbitData AmbitStack AmbitStackNode .
+
+    *** |================================================================================|
+    *** | Subsorts                                                                       |
+    *** |================================================================================|
+
+    subsort AmbitData < Ambit .
+    subsort AmbitStackNode < AmbitStack .
+
+    *** |================================================================================|
+    *** | Operators                                                                      |
+    *** |================================================================================|
+
+    op adnil : -> AmbitData [ctor] .
+    op asnil : -> AmbitStackNode [ctor] .
+
+    op __ : Ambit Ambit -> Ambit [ctor assoc comm id: adnil] .
+    op __ : AmbitStack AmbitStack -> AmbitStack [ctor assoc id: asnil] .
+
+    --- //--------------------------------------------------------------------------------
+    --- // data: name, const flag, type, value.
+    --- // node: ambit.
+    --- //--------------------------------------------------------------------------------
+
+    op data : String Bool LangType BasicValue -> AmbitData [ctor] .
+    op node : Ambit -> AmbitStackNode [ctor] .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Functions
+    --- //--------------------------------------------------------------------------------
+
+    op dataNewConst : String LangType -> AmbitData .
+    op dataNewVar : String LangType -> AmbitData .
+    op dataNew : String Bool LangType -> AmbitData .
+
+    op addToAmbit : Ambit AmbitData -> Ambit .
+    op addToAmbit : AmbitStackNode AmbitData -> AmbitStackNode .
+
+    op staticDataName : LangType String -> String .
+
+    op pushNewAmbit : AmbitStack -> AmbitStack .
+    op pushAmbit : Ambit AmbitStack -> AmbitStack .
+    op popAmbit : AmbitStack -> AmbitStack .
+    op topAmbit : AmbitStack -> Ambit .
+
+    op getData : String Ambit -> AmbitData .
+    op getData : String AmbitStack -> AmbitData .
+    op setDataValue : String BasicValue Ambit -> Ambit .
+    op setDataValue : String BasicValue AmbitStack -> AmbitStack .
+
+    op _`[Name`] : AmbitData -> String .
+    op _`[IsConst`] : AmbitData -> Bool .
+    op _`[Type`] : AmbitData -> LangType .
+    op _`[Value`] : AmbitData -> BasicValue .
+
+    *** |================================================================================|
+    *** | Variables                                                                      |
+    *** |================================================================================|
+
+    var CFLG : Bool .
+    var TYPE : LangType .
+    var NAME : String .
+    var AMBT : Ambit .
+    var AMBD : AmbitData .
+    var AMBS : AmbitStack .
+
+    vars BVAL BVAL' : BasicValue .
+
+    *** |================================================================================|
+    *** | Equations                                                                      |
+    *** |================================================================================|
+
+    eq dataNewConst(NAME, TYPE) = dataNew(NAME, true, TYPE) .
+    eq dataNewVar(NAME, TYPE) = dataNew(NAME, false, TYPE) .
+
+    eq dataNew(NAME, CFLG, boolType)     = data(NAME, CFLG, boolType, bsval(false)) .
+    eq dataNew(NAME, CFLG, charType)     = data(NAME, CFLG, charType, csval("\0")) .
+    eq dataNew(NAME, CFLG, integerType)  = data(NAME, CFLG, integerType, isval(0)) .
+    eq dataNew(NAME, CFLG, realType)     = data(NAME, CFLG, realType, rsval(0.0)) .
+    eq dataNew(NAME, CFLG, objectType)   = data(NAME, CFLG, objectType, psval(0)) .
+    eq dataNew(NAME, CFLG, functionType) = data(NAME, CFLG, functionType, psval(0)) .
+    eq dataNew(NAME, CFLG, tupleType)    = data(NAME, CFLG, tupleType, psval(0)) .
+    eq dataNew(NAME, CFLG, listType)     = data(NAME, CFLG, listType, psval(0)) .
+    eq dataNew(NAME, CFLG, stringType)   = data(NAME, CFLG, stringType, psval(0)) .
+    eq dataNew(NAME, CFLG, dynamicType)  = data(NAME, CFLG, dynamicType, pdval(0)) .
+    eq dataNew(NAME, CFLG, TYPE)         = data(NAME, CFLG, TYPE, psval(0)) [owise] .
+
+    eq addToAmbit(AMBT, AMBD) = AMBT AMBD .
+    eq addToAmbit(node(AMBT), AMBD) = node(AMBT AMBD) .
+
+    eq staticDataName(TYPE, NAME) = TYPE + "." + NAME .
+
+    eq pushNewAmbit(AMBS) = pushAmbit(adnil, AMBS) .
+    eq pushAmbit(AMBT, AMBS) = node(AMBT) AMBS .
+    eq popAmbit(asnil) = asnil .
+    eq popAmbit(node(AMBT) AMBS) = AMBS .
+    eq topAmbit(asnil) = adnil .
+    eq topAmbit(node(AMBT) AMBS) = AMBT .
+
+    eq getData(NAME, data(NAME, CFLG, TYPE, BVAL) AMBT) = data(NAME, CFLG, TYPE, BVAL) .
+    eq getData(NAME, AMBT) = adnil [owise] .
+
+    eq getData(NAME, asnil) = adnil .
+    ceq getData(NAME, node(AMBT) AMBS) =
+        if AMBD =/= adnil then AMBD
+        else getData(NAME, AMBS) fi
+        if AMBD := getData(NAME, AMBT) .
+
+    eq setDataValue(NAME, BVAL', data(NAME, CFLG, TYPE, BVAL) AMBT) = data(NAME, CFLG, TYPE, BVAL') AMBT .
+    eq setDataValue(NAME, BVAL', AMBT) = AMBT [owise] .
+
+    eq setDataValue(NAME, BVAL, asnil) = asnil .
+    eq setDataValue(NAME, BVAL, node(AMBT) AMBS) =
+        if getData(NAME, AMBT) == adnil then
+            node(AMBT) setDataValue(NAME, BVAL, AMBS)
+        else
+            node(setDataValue(NAME, BVAL, AMBT)) AMBS
+        fi .
+
+    eq data(NAME, CFLG, TYPE, BVAL) [Name] = NAME .
+    eq data(NAME, CFLG, TYPE, BVAL) [IsConst] = CFLG .
+    eq data(NAME, CFLG, TYPE, BVAL) [Type] = TYPE .
+    eq data(NAME, CFLG, TYPE, BVAL) [Value] = BVAL .
+
+endfm

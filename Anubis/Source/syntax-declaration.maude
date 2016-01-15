@@ -1,0 +1,422 @@
+--- **************************************************************************************
+--- * Anubis Programming Language
+--- * Copyright (c) 2014-2015 Gorka Suárez García
+--- *
+--- * Permission is hereby granted, free of charge, to any person obtaining a copy
+--- * of this software and associated documentation files (the "Software"), to deal
+--- * in the Software without restriction, including without limitation the rights
+--- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+--- * copies of the Software, and to permit persons to whom the Software is
+--- * furnished to do so, subject to the following conditions:
+--- *
+--- * The above copyright notice and this permission notice shall be included in
+--- * all copies or substantial portions of the Software.
+--- *
+--- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+--- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+--- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+--- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+--- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+--- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+--- * DEALINGS IN THE SOFTWARE.
+--- **************************************************************************************
+
+--- |************************************************************************************|
+--- | ANUBIS-SYNTAX-DECLARATION: This module contains the syntax of the declarations.    |
+--- |************************************************************************************|
+
+fmod ANUBIS-SYNTAX-DECLARATION is
+    protecting ANUBIS-SYNTAX-STATEMENT .
+
+    *** |================================================================================|
+    *** | Sorts                                                                          |
+    *** |================================================================================|
+
+    sorts Declarations Declaration IncludeDeclaration GlobalConstantDeclaration
+          GlobalVariableDeclaration FunctionDeclaration ClassDeclaration
+          AliasDeclaration .
+
+    sort SelfObjectExpression BaseObjectExpression FathersSequence
+         ClassParametersExpression ClassSignatureExpression ClassMemberModifier
+
+    sort BlockOfClassMemberDeclarations ClassMemberDeclarations ClassMemberDeclaration
+         ClassConstructorDeclaration ClassDestructorDeclaration ClassConstantDeclaration
+         ClassFieldDeclaration ClassMethodDeclaration ClassPropertyDeclaration
+         ClassOperatorDeclaration .
+
+    sort LambdaExpression .
+
+    *** |================================================================================|
+    *** | Subsorts                                                                       |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // Declarations technically are not supposed to be statements, but we need to use
+    --- // this way to use the Maude list operator. Anyway, we can still make an axiom
+    --- // and avoid to allow something that only goes into a statement in a list of
+    --- // declarations. The main problem with the Maude list operator is that statements
+    --- // and declarations share some structures like variable declaration. We also have
+    --- // a subtype of declarations, the used to define class members.
+    --- //--------------------------------------------------------------------------------
+
+    subsort Declaration < Statement .
+    subsort ClassMemberDeclarations < Declarations < Statements .
+    subsort BlockOfClassMemberDeclarations < BlockOfStatements .
+
+    subsort Declaration < Declarations .
+    subsort ClassMemberDeclaration < ClassMemberDeclarations .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Here we'll define the types of declarations inside the language.
+    --- //--------------------------------------------------------------------------------
+
+    subsort IncludeDeclaration GlobalConstantDeclaration GlobalVariableDeclaration
+            FunctionDeclaration ClassDeclaration ClassMemberDeclaration
+            AliasDeclaration < Declaration .
+    subsort ClassConstructorDeclaration ClassDestructorDeclaration
+            ClassConstantDeclaration ClassFieldDeclaration ClassMethodDeclaration
+            ClassPropertyDeclaration ClassOperatorDeclaration < ClassMemberDeclaration .
+
+    --- //--------------------------------------------------------------------------------
+    --- // We also need to allow some types to act as another declaration types.
+    --- //--------------------------------------------------------------------------------
+
+    subsort ConstantStatement < GlobalConstantDeclaration ClassConstantDeclaration .
+    subsort VariableStatement < GlobalVariableDeclaration ClassFieldDeclaration .
+    subsort FunctionDeclaration < ClassMethodDeclaration .
+
+    --- //--------------------------------------------------------------------------------
+    --- // We'll define some configuration types to define classes.
+    --- //--------------------------------------------------------------------------------
+
+    subsort ClassParametersExpression < FunctionParametersExpression .
+    subsort ClassSignatureExpression < FunctionSignatureExpression .
+    subsort FathersSequence < SequenceOfExpressions .
+    subsort SelfObjectExpression BaseObjectExpression < ObjectExpression .
+
+    --- //--------------------------------------------------------------------------------
+    --- // We'll add lambda expressions to the function expression.
+    --- //--------------------------------------------------------------------------------
+
+    subsort LambdaExpression < FunctionExpression .
+
+    *** |================================================================================|
+    *** | Operators (Declaration)                                                        |
+    *** |================================================================================|
+
+    op include_; : StringLiteral -> IncludeDeclaration
+                   [ctor prec 56 format (oi o o on)] .
+
+    op alias__; : TypeIdentifier Identifier -> AliasDeclaration
+                  [ctor prec 56 format (oi o o o on)] .
+
+    op alias_[]_; : TypeIdentifier Identifier -> AliasDeclaration
+                    [ctor prec 56 format (oi o o o s o on)] .
+
+    *** |================================================================================|
+    *** | Operators (Function)                                                           |
+    *** |================================================================================|
+
+    op func_; : FunctionSignatureExpression -> FunctionDeclaration
+        [ctor prec 56 format (oi o o on)] .
+    op function_; : FunctionSignatureExpression -> FunctionDeclaration
+        [ctor prec 56 format (oi o o on)] .
+
+    op func__ : FunctionSignatureExpression BlockOfStatements -> FunctionDeclaration
+        [ctor prec 58 gather(e e) format (oi o on+++s o---)] .
+    op function__ : FunctionSignatureExpression BlockOfStatements -> FunctionDeclaration
+        [ctor prec 58 gather(e e) format (oi o on+++s o---)] .
+
+    op func_:_; : FunctionSignatureExpression TypeIdentifier -> FunctionDeclaration
+        [ctor prec 56 gather(e e) format (oi o o o o on)] .
+    op function_:_; : FunctionSignatureExpression TypeIdentifier -> FunctionDeclaration
+        [ctor prec 56 gather(e e) format (oi o o o o on)] .
+
+    op func_:__ : FunctionSignatureExpression TypeIdentifier BlockOfStatements ->
+        FunctionDeclaration [ctor prec 58 gather(e e e) format (oi o o o on+++s o---)] .
+    op function_:__ : FunctionSignatureExpression TypeIdentifier BlockOfStatements ->
+        FunctionDeclaration [ctor prec 58 gather(e e e) format (oi o o o on+++s o---)] .
+
+    *** |================================================================================|
+    *** | Operators (Lambda)                                                             |
+    *** |================================================================================|
+
+    op _=>_ : FunctionParametersExpression BlockOfStatements -> LambdaExpression
+        [ctor gather(& &) prec 1 format (o os os o)] .
+
+    *** |================================================================================|
+    *** | Operators (Class)                                                              |
+    *** |================================================================================|
+
+    op class__ : Identifier BlockOfClassMemberDeclarations -> ClassDeclaration
+        [ctor prec 58 gather(e e) format (oi o on+++s o---)] .
+    op class__ : ClassSignatureExpression BlockOfClassMemberDeclarations ->
+        ClassDeclaration [ctor prec 58 gather(e e) format (oi o on+++s o---)] .
+
+    ops `[+`] `[-`] `[@`] `[@+`] `[@-`] `[+@`] `[-@`] : -> ClassMemberModifier [ctor] .
+
+    op self : -> SelfObjectExpression [ctor] .
+    op base : -> BaseObjectExpression [ctor] .
+
+    op _`[_`] : BaseObjectExpression TypeIdentifier -> ObjectExpression
+        [ctor prec 2 gather(E e)] .
+
+    *** |================================================================================|
+    *** | Operators (Class:Constructor,Destructor)                                       |
+    *** |================================================================================|
+
+    op ctor__ : FunctionParametersExpression BlockOfStatements -> ClassConstructorDeclaration
+        [ctor prec 58 gather(e e) format (oi o on+++s o---)] .
+    op constructor__ : FunctionParametersExpression BlockOfStatements -> ClassConstructorDeclaration
+        [ctor prec 58 gather(e e) format (oi o on+++s o---)] .
+
+    op _ctor__ : ClassMemberModifier FunctionParametersExpression BlockOfStatements ->
+        ClassConstructorDeclaration [ctor prec 58 gather(e e e) format (oi os o on+++s o---)] .
+    op _constructor__ : ClassMemberModifier FunctionParametersExpression BlockOfStatements ->
+        ClassConstructorDeclaration [ctor prec 58 gather(e e e) format (oi os o on+++s o---)] .
+
+    op dtor__ : FunctionParametersExpression BlockOfStatements -> ClassDestructorDeclaration
+        [ctor prec 58 gather(e e) format (oi o on+++s o---)] .
+    op destructor__ : FunctionParametersExpression BlockOfStatements -> ClassDestructorDeclaration
+        [ctor prec 58 gather(e e) format (oi o on+++s o---)] .
+
+    *** |================================================================================|
+    *** | Operators (Class:Constant,Field)                                               |
+    *** |================================================================================|
+
+    op _const_; : ClassMemberModifier MatchExpression -> ClassConstantDeclaration
+        [ctor prec 56 format (oi os o o on)] .
+    op _const_; : ClassMemberModifier SequenceOfMatchExpressions -> ClassConstantDeclaration
+        [ctor prec 56 format (oi os o o on)] .
+    op _var_; : ClassMemberModifier MatchExpression -> ClassFieldDeclaration
+        [ctor prec 56 format (oi os o o on)] .
+    op _var_; : ClassMemberModifier SequenceOfMatchExpressions -> ClassFieldDeclaration
+        [ctor prec 56 format (oi os o o on)] .
+
+    *** |================================================================================|
+    *** | Operators (Class:Method)                                                       |
+    *** |================================================================================|
+
+    op _func_; : ClassMemberModifier FunctionSignatureExpression
+        -> ClassMethodDeclaration [ctor prec 56 gather(e e) format (oi os o o on)] .
+    op _function_; : ClassMemberModifier FunctionSignatureExpression
+        -> ClassMethodDeclaration [ctor prec 56 gather(e e) format (oi os o o on)] .
+
+    op _func__ : ClassMemberModifier FunctionSignatureExpression BlockOfStatements
+        -> ClassMethodDeclaration [ctor prec 58 gather(e e e) format (oi os o on+++s o---)] .
+    op _function__ : ClassMemberModifier FunctionSignatureExpression BlockOfStatements
+        -> ClassMethodDeclaration [ctor prec 58 gather(e e e) format (oi os o on+++s o---)] .
+
+    op _func_:_; : ClassMemberModifier FunctionSignatureExpression TypeIdentifier
+        -> ClassMethodDeclaration [ctor prec 56 gather(e e e) format (oi os o o o o on)] .
+    op _function_:_; : ClassMemberModifier FunctionSignatureExpression TypeIdentifier
+        -> ClassMethodDeclaration [ctor prec 56 gather(e e e) format (oi os o o o o on)] .
+
+    op _func_:__ : ClassMemberModifier FunctionSignatureExpression TypeIdentifier
+        BlockOfStatements -> ClassMethodDeclaration [ctor prec 58 gather(e e e e)
+        format (oi os o o o on+++s o---)] .
+    op _function_:__ : ClassMemberModifier FunctionSignatureExpression TypeIdentifier
+        BlockOfStatements -> ClassMethodDeclaration [ctor prec 58 gather(e e e e)
+        format (oi os o o o on+++s o---)] .
+
+    *** |================================================================================|
+    *** | Operators (Class:Property)                                                     |
+    *** |================================================================================|
+
+    op prop_ `{ get `} : Identifier -> ClassPropertyDeclaration
+        [ctor prec 58 gather(e) format (oi o os os os on)] .
+    op property_ `{ get `} : Identifier -> ClassPropertyDeclaration
+        [ctor prec 58 gather(e) format (oi o os os os on)] .
+
+    op prop_ `{ get set `} : Identifier -> ClassPropertyDeclaration
+        [ctor prec 58 gather(e) format (oi o os os os os on)] .
+    op property_ `{ get set `} : Identifier -> ClassPropertyDeclaration
+        [ctor prec 58 gather(e) format (oi o os os os os on)] .
+
+    op prop_ `{ get_ `} : Identifier BlockOfStatements -> ClassPropertyDeclaration
+        [ctor prec 58 gather(e e) format (oi o os on+++is ons o---is on)] .
+    op property_ `{ get_ `} : Identifier BlockOfStatements -> ClassPropertyDeclaration
+        [ctor prec 58 gather(e e) format (oi o os on+++is ons o---is on)] .
+
+    op prop_ `{ get_ set_ `} : Identifier BlockOfStatements BlockOfStatements ->
+        ClassPropertyDeclaration [ctor prec 58 gather(e e e)
+        format (oi o os on+++is ons ois ons o---is on)] .
+    op property_ `{ get_ set_ `} : Identifier BlockOfStatements BlockOfStatements ->
+        ClassPropertyDeclaration [ctor prec 58 gather(e e e)
+        format (oi o os on+++is ons ois ons o---is on)] .
+
+    op _prop_ `{ get `} : ClassMemberModifier Identifier -> ClassPropertyDeclaration
+        [ctor prec 58 gather(e e) format (oi os o os os os on)] .
+    op _property_ `{ get `} : ClassMemberModifier Identifier -> ClassPropertyDeclaration
+        [ctor prec 58 gather(e e) format (oi os o os os os on)] .
+
+    op _prop_ `{ get set `} : ClassMemberModifier Identifier -> ClassPropertyDeclaration
+        [ctor prec 58 gather(e e) format (oi os o os os os os on)] .
+    op _property_ `{ get set `} : ClassMemberModifier Identifier -> ClassPropertyDeclaration
+        [ctor prec 58 gather(e e) format (oi os o os os os os on)] .
+
+    op _prop_ `{ get_ `} : ClassMemberModifier Identifier BlockOfStatements ->
+        ClassPropertyDeclaration [ctor prec 58 gather(e e e)
+        format (oi os o os on+++is ons o---is on)] .
+    op _property_ `{ get_ `} : ClassMemberModifier Identifier BlockOfStatements ->
+        ClassPropertyDeclaration [ctor prec 58 gather(e e e)
+        format (oi os o os on+++is ons o---is on)] .
+
+    op _prop_ `{ get_ set_ `} : ClassMemberModifier Identifier BlockOfStatements
+        BlockOfStatements -> ClassPropertyDeclaration [ctor prec 58
+        gather(e e e e) format (oi os o os on+++is ons ois ons o---is on)] .
+    op _property_ `{ get_ set_ `} : ClassMemberModifier Identifier BlockOfStatements
+        BlockOfStatements -> ClassPropertyDeclaration [ctor prec 58
+        gather(e e e e) format (oi os o os on+++is ons ois ons o---is on)] .
+
+    op prop_:_ `{ get `} : Identifier TypeIdentifier ->
+        ClassPropertyDeclaration [ctor prec 58 gather(e e)
+        format (oi o o o os os os on)] .
+    op property_:_ `{ get `} : Identifier TypeIdentifier ->
+        ClassPropertyDeclaration [ctor prec 58 gather(e e)
+        format (oi o o o os os os on)] .
+
+    op prop_:_ `{ get set `} : Identifier TypeIdentifier ->
+        ClassPropertyDeclaration [ctor prec 58 gather(e e)
+        format (oi o o o os os os os on)] .
+    op property_:_ `{ get set `} : Identifier TypeIdentifier ->
+        ClassPropertyDeclaration [ctor prec 58 gather(e e)
+        format (oi o o o os os os os on)] .
+
+    op prop_:_ `{ get_ `} : Identifier TypeIdentifier
+        BlockOfStatements -> ClassPropertyDeclaration [ctor prec 58
+        gather(e e e) format (oi o o o os on+++is ons o---is on)] .
+    op property_:_ `{ get_ `} : Identifier TypeIdentifier
+        BlockOfStatements -> ClassPropertyDeclaration [ctor prec 58
+        gather(e e e) format (oi o o o os on+++is ons o---is on)] .
+
+    op prop_:_ `{ get_ set_ `} : Identifier TypeIdentifier
+        BlockOfStatements BlockOfStatements -> ClassPropertyDeclaration [ctor prec 58
+        gather(e e e e) format (oi o o o os on+++is ons ois ons o---is on)] .
+    op property_:_ `{ get_ set_ `} : Identifier TypeIdentifier
+        BlockOfStatements BlockOfStatements -> ClassPropertyDeclaration [ctor prec 58
+        gather(e e e e) format (oi o o o os on+++is ons ois ons o---is on)] .
+
+    op _prop_:_ `{ get `} : ClassMemberModifier Identifier TypeIdentifier ->
+        ClassPropertyDeclaration [ctor prec 58 gather(e e e)
+        format (oi os o o o os os os on)] .
+    op _property_:_ `{ get `} : ClassMemberModifier Identifier TypeIdentifier ->
+        ClassPropertyDeclaration [ctor prec 58 gather(e e e)
+        format (oi os o o o os os os on)] .
+
+    op _prop_:_ `{ get set `} : ClassMemberModifier Identifier TypeIdentifier ->
+        ClassPropertyDeclaration [ctor prec 58 gather(e e e)
+        format (oi os o o o os os os os on)] .
+    op _property_:_ `{ get set `} : ClassMemberModifier Identifier TypeIdentifier ->
+        ClassPropertyDeclaration [ctor prec 58 gather(e e e)
+        format (oi os o o o os os os os on)] .
+
+    op _prop_:_ `{ get_ `} : ClassMemberModifier Identifier TypeIdentifier
+        BlockOfStatements -> ClassPropertyDeclaration [ctor prec 58
+        gather(e e e e) format (oi os o o o os on+++is ons o---is on)] .
+    op _property_:_ `{ get_ `} : ClassMemberModifier Identifier TypeIdentifier
+        BlockOfStatements -> ClassPropertyDeclaration [ctor prec 58
+        gather(e e e e) format (oi os o o o os on+++is ons o---is on)] .
+
+    op _prop_:_ `{ get_ set_ `} : ClassMemberModifier Identifier TypeIdentifier
+        BlockOfStatements BlockOfStatements -> ClassPropertyDeclaration [ctor prec 58
+        gather(e e e e e) format (oi os o o o os on+++is ons ois ons o---is on)] .
+    op _property_:_ `{ get_ set_ `} : ClassMemberModifier Identifier TypeIdentifier
+        BlockOfStatements BlockOfStatements -> ClassPropertyDeclaration [ctor prec 58
+        gather(e e e e e) format (oi os o o o os on+++is ons ois ons o---is on)] .
+
+    *** |================================================================================|
+    *** | Operators                                                                      |
+    *** |================================================================================|
+
+    op isDeclarations : Statements -> Bool .
+    op isFathersSequence : SequenceOfExpressions -> Bool .
+    op isClassParametersExpression : ParametersExpression -> Bool .
+    op isClassMemberDeclarations : Statements -> Bool .
+    op isBlockOfClassMemberDeclarations : BlockOfStatements -> Bool .
+
+    *** |================================================================================|
+    *** | Variables                                                                      |
+    *** |================================================================================|
+
+    vars LS RS : Statement .
+    vars LST RST : Statements .
+    vars LEX REX : Expression .
+
+    var CLDC : ClassMemberDeclarations .
+    var SOE : SequenceOfExpressions .
+    var PEX : ParametersExpression .
+    var BOS : BlockOfStatements .
+    var TID : TypeIdentifier .
+    var IDR : Identifier .
+
+    *** |================================================================================|
+    *** | Memberships                                                                    |
+    *** |================================================================================|
+
+    cmb LST : Declarations if isDeclarations(LST) .
+    cmb SOE : FathersSequence if isFathersSequence(SOE) .
+    cmb PEX : ClassParametersExpression if isClassParametersExpression(PEX) .
+    cmb LST : ClassMemberDeclarations if isClassMemberDeclarations(LST) .
+    cmb BOS : BlockOfClassMemberDeclarations if isBlockOfClassMemberDeclarations(BOS) .
+
+    cmb IDR PEX : ClassSignatureExpression if isClassParametersExpression(PEX) .
+
+    *** |================================================================================|
+    *** | Equations (Any In Sequence)                                                    |
+    *** |================================================================================|
+
+    eq isDeclarations(LS) = (LS :: Declaration) .
+    eq isDeclarations(LS RS) = (LS :: Declaration) and (RS :: Declaration) .
+    eq isDeclarations(LS RST) = if LS :: Declaration then isDeclarations(RST) else false fi .
+    eq isDeclarations(LST RS) = if RS :: Declaration then isDeclarations(LST) else false fi .
+    eq isDeclarations(LST RST) = isDeclarations(LST) and isDeclarations(RST) [owise] .
+
+    eq isClassMemberDeclarations(LS) = (LS :: ClassMemberDeclaration) .
+    eq isClassMemberDeclarations(LS RS) =
+        (LS :: ClassMemberDeclaration) and (RS :: ClassMemberDeclaration) .
+    eq isClassMemberDeclarations(LS RST) =
+        if LS :: ClassMemberDeclaration then
+            isClassMemberDeclarations(RST)
+        else
+            false
+        fi .
+    eq isClassMemberDeclarations(LST RS) =
+        if RS :: ClassMemberDeclaration then
+            isClassMemberDeclarations(LST)
+        else
+            false
+        fi .
+    eq isClassMemberDeclarations(LST RST) =
+        isClassMemberDeclarations(LST) and isClassMemberDeclarations(RST) [owise] .
+
+    eq isFathersSequence(LEX, REX) =
+        if (LEX :: SequenceOfExpressions) and (REX :: SequenceOfExpressions) then
+            isFathersSequence(LEX) and
+            isFathersSequence(REX)
+        else if LEX :: SequenceOfExpressions then
+            if (REX :: TypeIdentifier) then
+                isFathersSequence(LEX)
+            else
+                false
+            fi
+        else if REX :: SequenceOfExpressions then
+            if (LEX :: TypeIdentifier) then
+                isFathersSequence(REX)
+            else
+                false
+            fi
+        else
+            (LEX :: TypeIdentifier) and (REX :: TypeIdentifier)
+        fi fi fi .
+
+    eq isBlockOfClassMemberDeclarations({}) = true .
+    eq isBlockOfClassMemberDeclarations({LST}) = isClassMemberDeclarations(LST) .
+    eq isBlockOfClassMemberDeclarations(BOS) = false [owise] .
+
+    eq isClassParametersExpression(()) = true .
+    eq isClassParametersExpression((TID)) = true .
+    eq isClassParametersExpression((SOE)) = isFathersSequence(SOE) .
+    eq isClassParametersExpression(PEX) = false [owise] .
+
+endfm

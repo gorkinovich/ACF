@@ -1,0 +1,81 @@
+--- **************************************************************************************
+--- * Anubis Programming Language
+--- * Copyright (c) 2014-2015 Gorka Suárez García
+--- *
+--- * Permission is hereby granted, free of charge, to any person obtaining a copy
+--- * of this software and associated documentation files (the "Software"), to deal
+--- * in the Software without restriction, including without limitation the rights
+--- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+--- * copies of the Software, and to permit persons to whom the Software is
+--- * furnished to do so, subject to the following conditions:
+--- *
+--- * The above copyright notice and this permission notice shall be included in
+--- * all copies or substantial portions of the Software.
+--- *
+--- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+--- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+--- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+--- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+--- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+--- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+--- * DEALINGS IN THE SOFTWARE.
+--- **************************************************************************************
+
+--- |************************************************************************************|
+--- | ANUBIS-UTILITY-STATEMENT: This module contains utility operators.                  |
+--- |************************************************************************************|
+
+fmod ANUBIS-UTILITY-STATEMENT is
+    protecting ANUBIS-SYNTAX-STATEMENT .
+
+    *** |================================================================================|
+    *** | Operators                                                                      |
+    *** |================================================================================|
+
+    op addStatement : Statements Statement -> Statements .
+    op addStatements : Statements Statements -> Statements .
+    op addToBlock : Statement BlockOfStatements -> BlockOfStatements .
+    op getStatements : Statements -> Statements .
+
+    op firstStatement : Statements -> BlockOrStatement .
+    op tailStatements : Statements -> Statements .
+
+    *** |================================================================================|
+    *** | Variables                                                                      |
+    *** |================================================================================|
+
+    var BORS : BlockOrStatement .
+
+    vars STMN STMN' : Statement .
+    vars STMS STMS' : Statements .
+
+    *** |================================================================================|
+    *** | Equations                                                                      |
+    *** |================================================================================|
+
+    eq addStatement(STMN, ;;) = STMN .
+    eq addStatement(;;, STMN') = STMN' .
+    eq addStatement(STMN, STMN') = STMN STMN' .
+    eq addStatement(STMN STMS, STMN') = STMN addStatements(STMS, STMN') [owise] .
+
+    eq addStatements(STMS, ;;) = STMS .
+    eq addStatements(STMS, ;; STMS') = addStatements(STMS, STMS') .
+    eq addStatements(STMS, STMN') = addStatement(STMS, STMN') .
+    eq addStatements(STMS, STMN' STMS') = addStatements(addStatement(STMS, STMN'), STMS') [owise] .
+
+    eq addToBlock(STMN, {}) = { STMN } .
+    eq addToBlock(STMN, { STMS }) = { addStatement(STMS, STMN) } .
+
+    eq getStatements({}) = ;; .
+    eq getStatements({ STMS }) = STMS .
+    eq getStatements(STMS) = STMS [owise] .
+
+    eq firstStatement(BORS) = BORS .
+    eq firstStatement(BORS STMS) = BORS .
+    eq firstStatement(STMS STMS') = firstStatement(STMS) [owise] .
+
+    eq tailStatements(BORS) = ;; .
+    eq tailStatements(BORS STMS) = STMS .
+    eq tailStatements(STMS STMS') = tailStatements(STMS) STMS' [owise] .
+
+endfm

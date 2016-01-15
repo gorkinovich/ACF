@@ -1,0 +1,2189 @@
+--- **************************************************************************************
+--- * ACF, Práctica 4: Arquitectura básica de red
+--- * Paloma Galván Calleja, Gorka Suárez García
+--- **************************************************************************************
+
+---(======================================================================================
+
+                |===================================================|
+                | AVISO: Es importante cargar los módulos de maude  |
+                |        para este ejercicio en el siguiente orden. |
+                |===================================================|
+
+load model-checker.maude
+load full-maude.maude
+load P04-A23-Parejas.maude
+
+=========================================================================================)
+
+--- **************************************************************************************
+--- * Especifica y analiza en un módulo orientado a objetos una arquitectura de red
+--- * básica. Esta arquitectura tiene, en un primer nivel, Procesos y Canales. Dentro
+--- * de los procesos tendremos configuraciones con un objeto de tipo Nodo y mensajes,
+--- * mientras que los canales comunican los distintos procesos y permiten el
+--- * intercambio de mensajes. Para ello:
+--- **************************************************************************************
+
+--- **************************************************************************************
+--- ****************************** Parte 2: Comportamiento *******************************
+--- **************************************************************************************
+
+*** |------------------------------------------------------------------------------------|
+*** | Esta vista se usa para poder usar como parámetro el tipo Oid en cualquier módulo   |
+*** | parametrizable que exista en Maude o necesitemos crear nosotros.                   |
+*** |------------------------------------------------------------------------------------|
+(view Oid from TRIV to CONFIGURATION is
+    sort Elt to Oid .
+endv)
+
+*** |------------------------------------------------------------------------------------|
+*** | Este módulo contiene un tipo parametrizable para formar tablas/mapas de valores    |
+*** | que estén asociados a una clave determinada.                                       |
+*** |------------------------------------------------------------------------------------|
+(fmod TABLA{C :: TRIV, V :: TRIV} is
+
+    *** |--------------------------------------------------------------------------------|
+    *** | El tipo principal del módulo es Tabla, que dispone de un operador constructor  |
+    *** | para indicar que la tabla está vacía y otro para formar una lista de elementos |
+    *** | donde el orden no importa.                                                     |
+    *** |--------------------------------------------------------------------------------|
+
+    sort Tabla{C,V} .
+    op tvacia : -> Tabla{C,V} [ctor] .
+    op _&_ : Tabla{C,V} Tabla{C,V} -> Tabla{C,V} [ctor assoc comm id: tvacia] .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Dentro de la tabla tendremos un subtipo para indicar como se forman los nodos  |
+    *** | internos de la estructura. Básicamente cada nodo se construye con un primer    |
+    *** | valor que ejerce de clave y uno segundo para almacenar un dato cualquiera.     |
+    *** |--------------------------------------------------------------------------------|
+
+    sort NodoTabla{C,V} .
+    subsort NodoTabla{C,V} < Tabla{C,V} .
+    op `{_`,_`} : C$Elt V$Elt -> NodoTabla{C,V} [ctor] .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | La función "inserta" recibe una tabla y un nodo a insertar. Primero busca si   |
+    *** | existe algún nodo con la misma clave, para actualizar el contenido de dicha    |
+    *** | entrada. Si no, simplemente lo añade a la tabla.                               |
+    *** |--------------------------------------------------------------------------------|
+
+    var Clave : C$Elt .
+    vars V1 V2 : V$Elt .
+    var TS : Tabla{C,V} .
+
+    op inserta : Tabla{C,V} NodoTabla{C,V} -> Tabla{C,V} .
+
+    eq inserta({Clave,V1} & TS, {Clave,V2}) = {Clave,V2} & TS .
+    eq inserta(TS, {Clave,V1}) = TS & {Clave,V1} [owise] .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Sobrecargamos la función "inserta" para que permita tener como parámetros la   |
+    *** | tabla, la clave y el valor a insertar sueltos, en ese orden.                   |
+    *** |--------------------------------------------------------------------------------|
+
+    op inserta : Tabla{C,V} C$Elt V$Elt -> Tabla{C,V} .
+    eq inserta(TS, Clave, V2) = inserta(TS, {Clave,V2}) .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | La función "elimina" recibe una tabla y una clave a eliminar. Primero busca    |
+    *** | si existe algún nodo con la misma clave, para devolver el resto de la tabla.   |
+    *** | Si no lo encuentra, devuelve la tabla entera.                                  |
+    *** |--------------------------------------------------------------------------------|
+
+    op elimina : Tabla{C,V} C$Elt -> Tabla{C,V} .
+
+    eq elimina({Clave,V1} & TS, Clave) = TS .
+    eq elimina(TS, Clave) = TS [owise] .
+
+endfm)
+
+*** |------------------------------------------------------------------------------------|
+*** | Esta vista se usa para poder usar como parámetro el tipo Msg en cualquier módulo   |
+*** | parametrizable que exista en Maude o necesitemos crear nosotros.                   |
+*** |------------------------------------------------------------------------------------|
+(view Msg from TRIV to CONFIGURATION is
+    sort Elt to Msg .
+endv)
+
+*** |------------------------------------------------------------------------------------|
+*** | Este módulo contiene un tipo parametrizable para formar listas de valores de forma |
+*** | sencilla como se ha visto en clase a lo largo del curso, o en el manual de Maude.  |
+*** |------------------------------------------------------------------------------------|
+(fmod LISTA{V :: TRIV} is
+    sort Lista{V} .
+    subsort V$Elt < Lista{V} .
+    op lvacia : -> Lista{V} [ctor] .
+    op _;_ : Lista{V} Lista{V} -> Lista{V} [ctor assoc id: lvacia] .
+endfm)
+
+--- |************************************************************************************|
+--- |                         Ejercicio 9 (módulos adicionales)                          |
+--- |************************************************************************************|
+
+*** |------------------------------------------------------------------------------------|
+*** | Este módulo contiene un tipo parametrizable para formar conjuntos de valores.      |
+*** |------------------------------------------------------------------------------------|
+(fmod CONJUNTO{V :: TRIV} is
+    sort Conjunto{V} .
+    subsort V$Elt < Conjunto{V} .
+    op cvacio : -> Conjunto{V} [ctor] .
+    op _|_ : Conjunto{V} Conjunto{V} -> Conjunto{V} [ctor assoc comm id: cvacio] .
+endfm)
+
+--- **************************************************************************************
+--- ****************************** Parte 2: Comportamiento *******************************
+--- **************************************************************************************
+
+(omod RED-BASICA is
+
+--- **************************************************************************************
+--- * Código de los ejercicios del 1 al 8:
+--- **************************************************************************************
+
+    pr QID .
+    pr NAT .
+    pr STRING .
+    pr TABLA{String,Oid} .
+    pr LISTA{Msg} .
+
+    *** |********************************************************************************|
+    *** |************************************ Tipos *************************************|
+    *** |********************************************************************************|
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Aquí tenemos el tipo "Estado" que ejerce de tipo enumerado, para indicar la    |
+    *** | situación actual de un nodo de la red que vamos a modelar.                     |
+    *** |--------------------------------------------------------------------------------|
+
+    sort Estado .
+    ops inactivo esperando activo : -> Estado [ctor] .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | A fin de poder tener identificadores de objetos vamos a indicar a Maude que    |
+    *** | usaremos los identificadores con comilla para dicho propósito.                 |
+    *** |                                                                                |
+    *** | Además vamos a utilizar un constructor para crear identificadores de objetos   |
+    *** | compuestos, porque a lo largo de la práctica vamos a necesitar saber a qué     |
+    *** | proceso pertenece cada nodo.                                                   |
+    *** |--------------------------------------------------------------------------------|
+
+    subsort Qid < Oid .
+    op n : Oid Nat -> Oid [ctor] .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Creamos el tipo encargado de almacenar identificadores de nodos asociados a    |
+    *** | las direcciones IP de los mismos.                                              |
+    *** |--------------------------------------------------------------------------------|
+
+    sort TablaIPs .
+    subsort Tabla{String,Oid} < TablaIPs .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Vamos a definir "null" como un identificador de objeto vacío, que vamos a      |
+    *** | utilizar en la clase "Extremo" para inicializar el campo "centro".             |
+    *** |--------------------------------------------------------------------------------|
+
+    op null : -> Oid [ctor] .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Creamos el tipo encargado de almacenar colas de mensajes que el canal de       |
+    *** | comunicación va a almacenar en su interior.                                    |
+    *** |--------------------------------------------------------------------------------|
+
+    sort ListaMsg .
+    subsort Lista{Msg} < ListaMsg .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Aquí tenemos el tipo "EstadoCanal" que ejerce de tipo enumerado, para indicar  |
+    *** | la situación actual de un canal de la red que vamos a modelar.                 |
+    *** |--------------------------------------------------------------------------------|
+
+    sort EstadoCanal .
+    ops ok error : -> EstadoCanal [ctor] .
+
+    *** |********************************************************************************|
+    *** |********************************** Variables ***********************************|
+    *** |********************************************************************************|
+
+    var N : Nat .
+    var E : Estado .
+    var T : TablaIPs .
+    var CJ : CjtoString .
+    var EC : EstadoCanal .
+    var CS : Configuration .
+    var OBJ : Object .
+    var PRT : Portal .
+
+    vars S S' S'' : String .
+    vars O O' O'' OP OP' OC OPO OPD : Oid .
+    vars LMS LMS' : ListaMsg .
+    vars MSG MSG' : Msg .
+
+    *** |********************************************************************************|
+    *** |************************************ Clases ************************************|
+    *** |********************************************************************************|
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Aquí tenemos la clase "Proceso" que va a ser la encargada de almacenar los     |
+    *** | objetos de tipo nodo que vamos a tener en la práctica.                         |
+    *** |--------------------------------------------------------------------------------|
+
+    class Proceso | datos : Configuration .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Con la clase "Canal" representaremos la vía mediante los diferentes procesos,  |
+    *** | de nuestro modelo, se van a poder comunicar entre sí. Para ello tendremos que  |
+    *** | contar con un objeto de esta clase donde indicar como origen un proceso        |
+    *** | determinado y como destino otro cualquiera que queramos.                       |
+    *** |--------------------------------------------------------------------------------|
+
+    class Canal | origen : Oid, destino : Oid, listaOrigen : ListaMsg,
+                  listaDestino : ListaMsg, estado : EstadoCanal .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Para facilitar la creación de objetos de tipo "Canal" tendremos una serie de   |
+    *** | funciones que hacen de algo parecido a los constructores de toda la vida.      |
+    *** |--------------------------------------------------------------------------------|
+
+    op nuevoCanal : Oid Oid Oid -> Object .
+    eq nuevoCanal(OC, OPO, OPD) = < OC : Canal | origen : OPO,
+                                                destino : OPD,
+                                            listaOrigen : lvacia,
+                                           listaDestino : lvacia,
+                                                 estado : ok > .
+
+    op nuevoCanal : Oid Oid Oid EstadoCanal -> Object .
+    eq nuevoCanal(OC, OPO, OPD, EC) = < OC : Canal | origen : OPO,
+                                                    destino : OPD,
+                                                listaOrigen : lvacia,
+                                               listaDestino : lvacia,
+                                                     estado : EC > .
+
+    *** |********************************************************************************|
+    *** |*********************************** Mensajes ***********************************|
+    *** |********************************************************************************|
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Definimos un par de mensajes para crear una dinámica de comunicación en la que |
+    *** | los extremos van a emitir un mensaje informativo para que llegue al centro,    |
+    *** | donde se actualizará su tabla de direcciones IP y responderá con otro mensaje  |
+    *** | que actualizará el extremo otorgándole un centro asociado.                     |
+    *** |--------------------------------------------------------------------------------|
+
+    msg info : String Oid -> Msg .
+    msg para_respuesta-info_ : Oid Oid -> Msg .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | La primera regla a definir es como se emiten los mensajes de información desde |
+    *** | los nodos de tipo "Extremo". Para ello dicho nodo ha de estar "inactivo". Una  |
+    *** | vez emitido pasa al estado de "esperando" hasta que reciba una respuesta.      |
+    *** |--------------------------------------------------------------------------------|
+
+    rl[ext.e->inf] :
+        < OP : Proceso | datos :
+            < O : Extremo | ip     : S,
+                            estado : inactivo >
+            CS >
+        =>
+        < OP : Proceso | datos :
+            < O : Extremo | estado : esperando >
+            info(S, O)
+            CS >
+        [print "ext.e->inf"] .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | La segunda regla a definir es como se reciben los mensajes de información en   |
+    *** | los nodos de tipo "Centro". Si el centro está "inactivo" tendrá que cambiar    |
+    *** | su estado a "activo", si no el estado se queda como está. Además una vez       |
+    *** | recibida la información tiene que emitir un mensaje de respuesta.              |
+    *** |--------------------------------------------------------------------------------|
+
+    rl[cen.r->inf.e->r-inf@inact] :
+        < OP : Proceso | datos :
+            info(S, O)
+            < O' : Centro | tabla  : T,
+                            estado : inactivo >
+            CS >
+        =>
+        < OP : Proceso | datos :
+            < O' : Centro | tabla  : inserta(T, S, O),
+                            estado : activo >
+            (para O respuesta-info O')
+            CS >
+        [print "cen.r->inf.e->r-inf@inact"] .
+
+    crl[cen.r->inf.e->r-inf] :
+        < OP : Proceso | datos :
+            info(S, O)
+            < O' : Centro | tabla  : T,
+                            estado : E >
+            CS >
+        =>
+        < OP : Proceso | datos :
+            < O' : Centro | tabla : inserta(T, S, O) >
+            (para O respuesta-info O')
+            CS >
+        if E =/= inactivo
+        [print "cen.r->inf.e->r-inf"] .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | La tercera regla a definir es como se reciben los mensajes de respuesta en los |
+    *** | nodos de tipo "Extremo". Una vez recibido se actualiza el "centro" al que está |
+    *** | asociado, así como su estado.                                                  |
+    *** |--------------------------------------------------------------------------------|
+
+    rl[ext.r->r-inf] :
+        < OP : Proceso | datos :
+            (para O respuesta-info O')
+            < O : Extremo | >
+            CS >
+        =>
+        < OP : Proceso | datos :
+            < O : Extremo | centro : O',
+                            estado : activo >
+            CS >
+        [print "ext.r->r-inf"] .
+
+--- **************************************************************************************
+--- * Ejercicio 9: Define el tipo (sort) CjtoString, que identifica un conjunto de
+--- * String. Crea las constructoras y los subsort necesarios, pero no hace falta
+--- * que definas funciones para este tipo.
+--- **************************************************************************************
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Importamos el módulo para tener conjuntos en nuestro modelo y creamos el tipo  |
+    *** | encargado de almacenar conjuntos de cadenas, que será usado para almacenar     |
+    *** | las direcciones IP de los "amigos" de un nodo.                                 |
+    *** |--------------------------------------------------------------------------------|
+
+    pr CONJUNTO{String} .
+
+    sort CjtoString .
+    subsort Conjunto{String} < CjtoString .
+
+--- **************************************************************************************
+--- * Ejercicio 10: Define un nuevo atributo recibido, de tipo String, para la clase
+--- * Nodo. Inicialmente este atributo contiene la cadena vacía.
+--- *
+--- * Ejercicio 11: Define un nuevo atributo amigos, de tipo CjtoString, también en
+--- * la clase Nodo. Este argumento contendrá las IPs de algunos de los otros nodos.
+--- **************************************************************************************
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Declaramos la clase "Nodo" de la que van a heredar las diferentes clases que   |
+    *** |  vamos a tener dentro de los procesos de la práctica.                          |
+    *** |--------------------------------------------------------------------------------|
+
+    class Nodo | ip : String, estado : Estado,
+                 recibido : String, amigos : CjtoString .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | La clase "Centro" es un tipo de nodo y se encarga de tener una tabla para      |
+    *** | poder traducir de direcciones IP a identificadores de objeto nodo.             |
+    *** |--------------------------------------------------------------------------------|
+
+    class Centro | tabla : TablaIPs .
+    subclass Centro < Nodo .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | La clase "Extremo" es un tipo de nodo y se encarga de representar a aquellos   |
+    *** | nodos que hacen de clientes, frente a "Centro" que hace de servidor.           |
+    *** |--------------------------------------------------------------------------------|
+
+    class Extremo | centro : Oid .
+    subclass Extremo < Nodo .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Para facilitar la creación de objetos de tipo "Centro" tendremos una serie de  |
+    *** | funciones que hacen de algo parecido a los constructores de toda la vida.      |
+    *** |--------------------------------------------------------------------------------|
+
+    op nuevoCentro : Oid Nat String -> Object .
+    eq nuevoCentro(O, N, S) = < n(O,N) : Centro | tabla : tvacia,
+                                                     ip : S,
+                                                 estado : inactivo,
+                                               recibido : "",
+                                                 amigos : cvacio > .
+
+    op nuevoCentro : Oid Nat String CjtoString -> Object .
+    eq nuevoCentro(O, N, S, CJ) = < n(O,N) : Centro | tabla : tvacia,
+                                                         ip : S,
+                                                     estado : inactivo,
+                                                   recibido : "",
+                                                     amigos : CJ > .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Para facilitar la creación de objetos de tipo "Extremo" tendremos una serie de |
+    *** | funciones que hacen de algo parecido a los constructores de toda la vida.      |
+    *** |--------------------------------------------------------------------------------|
+
+    op nuevoExtremo : Oid Nat String -> Object .
+    eq nuevoExtremo(O, N, S) = < n(O,N) : Extremo | centro : null,
+                                                        ip : S,
+                                                    estado : inactivo,
+                                                  recibido : "",
+                                                    amigos : cvacio > .
+
+    op nuevoExtremo : Oid Nat String CjtoString -> Object .
+    eq nuevoExtremo(O, N, S, CJ) = < n(O,N) : Extremo | centro : null,
+                                                            ip : S,
+                                                        estado : inactivo,
+                                                      recibido : "",
+                                                        amigos : CJ > .
+
+--- **************************************************************************************
+--- * Ejercicio 12: Define un nuevo mensaje to_:_, que toma como argumentos 2
+--- * elementos de tipo String.
+--- **************************************************************************************
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Este mensaje se utiliza para enviar una cadena de texto a otro nodo,           |
+    *** | indicando la dirección IP al no saber el identificador de objeto al que        |
+    *** | mandar el mensaje.                                                             |
+    *** |--------------------------------------------------------------------------------|
+
+    msg to_:_ : String String -> Msg .
+
+--- **************************************************************************************
+--- * Ejercicio 13: Define un nuevo mensaje to_:_, que se diferencia del anterior
+--- * porque en este caso el primer argumento es un Oid.
+--- **************************************************************************************
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Este mensaje se utiliza para enviar la cadena al nodo correcto al tener ya     |
+    *** | asignado el identificador de objeto correcto.                                  |
+    *** |--------------------------------------------------------------------------------|
+
+    msg to_:_ : Oid String -> Msg .
+
+--- **************************************************************************************
+--- * Ejercicio 14: El intercambio de mensajes se hace por medio de los canales.
+--- * Para ello:
+--- * + Una regla debe introducir en la lista adecuada del canal adecuado los
+--- *   mensajes salientes del proceso.
+--- * + Una regla debe extraer de la lista adecuada del canal adecuado los
+--- *   mensajes entrantes.
+--- * + Estas reglas solo se aplican si el canal funciona, es decir, si su
+--- *   estado es ok.
+--- **************************************************************************************
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Esta sencilla función devuelve el proceso contenido en el identificador.       |
+    *** |--------------------------------------------------------------------------------|
+
+    op dameProceso : Oid -> Oid .
+    eq dameProceso(n(O,N)) = O .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Estas funciones devuelve si un mensaje es para el "centro" o el "extremo".     |
+    *** |--------------------------------------------------------------------------------|
+
+    op esParaCentro : Msg -> Bool .
+    eq esParaCentro(info(S, O)) = true .
+    eq esParaCentro(to S : S') = true .
+    eq esParaCentro(MSG) = false [owise] .
+
+    op esParaExtremo : Msg -> Bool .
+    eq esParaExtremo(para O respuesta-info O') = true .
+    eq esParaExtremo(to O : S) = true .
+    eq esParaExtremo(MSG) = false [owise] .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Estas funciones devuelve el proceso donde está el "extremo".                   |
+    *** |--------------------------------------------------------------------------------|
+
+    op dameProcesoExtremo : Msg -> Oid .
+    eq dameProcesoExtremo(para O respuesta-info O') = dameProceso(O) .
+    eq dameProcesoExtremo(to O : S) = dameProceso(O) .
+    eq dameProcesoExtremo(MSG) = null [owise] .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | En esta regla introduciremos los mensajes emitidos por algún nodo "Extremo",   |
+    *** | que está conectado al "origen" del canal, a la lista de destino.               |
+    *** |--------------------------------------------------------------------------------|
+
+    crl[can.eo->ext.msj] :
+        < OC : Canal | origen       : OP,
+                       listaDestino : LMS,
+                       estado       : ok >
+        < OP : Proceso | datos :
+            MSG
+            < O : Extremo | >
+            CS >
+        =>
+        < OC : Canal | listaDestino : LMS ; MSG >
+        < OP : Proceso | datos :
+            < O : Extremo | >
+            CS >
+        if esParaCentro(MSG)
+        [print "can.eo->ext.msj"] .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | En esta regla introduciremos los mensajes emitidos por algún nodo "Extremo",   |
+    *** | que está conectado al "destino" del canal, a la lista de origen.               |
+    *** |--------------------------------------------------------------------------------|
+
+    crl[can.ed->ext.msj] :
+        < OC : Canal | destino     : OP,
+                       listaOrigen : LMS,
+                       estado      : ok >
+        < OP : Proceso | datos :
+            MSG
+            < O : Extremo | >
+            CS >
+        =>
+        < OC : Canal | listaOrigen : LMS ; MSG >
+        < OP : Proceso | datos :
+            < O : Extremo | >
+            CS >
+        if esParaCentro(MSG)
+        [print "can.ed->ext.msj"] .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | En esta regla introduciremos los mensajes emitidos por algún nodo "Centro",    |
+    *** | que está conectado al "origen" del canal, a la lista de destino.               |
+    *** |--------------------------------------------------------------------------------|
+
+    crl[can.eo->cen.msj] :
+        < OC : Canal | origen       : OP,
+                       destino      : OP',
+                       listaDestino : LMS,
+                       estado       : ok >
+        < OP : Proceso | datos :
+            MSG
+            < O : Centro | >
+            CS >
+        =>
+        < OC : Canal | listaDestino : LMS ; MSG >
+        < OP : Proceso | datos :
+            < O : Centro | >
+            CS >
+        if esParaExtremo(MSG) /\ OP' := dameProcesoExtremo(MSG)
+        [print "can.eo->cen.msj"] .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | En esta regla introduciremos los mensajes emitidos por algún nodo "Centro",    |
+    *** | que está conectado al "destino" del canal, a la lista de origen.               |
+    *** |--------------------------------------------------------------------------------|
+
+    crl[can.ed->cen.msj] :
+        < OC : Canal | origen      : OP',
+                       destino     : OP,
+                       listaOrigen : LMS,
+                       estado      : ok >
+        < OP : Proceso | datos :
+            MSG
+            < O : Centro | >
+            CS >
+        =>
+        < OC : Canal | listaOrigen : LMS ; MSG >
+        < OP : Proceso | datos :
+            < O : Centro | >
+            CS >
+        if esParaExtremo(MSG) /\ OP' := dameProcesoExtremo(MSG)
+        [print "can.ed->cen.msj"] .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | En esta regla sacaremos los mensajes emitidos por algún nodo cualquiera hacia  |
+    *** | el "origen" del canal, por lo que se tomaran de la lista de origen.            |
+    *** |--------------------------------------------------------------------------------|
+
+    rl[can.ro->msj] :
+        < OC : Canal | origen      : OP,
+                       listaOrigen : MSG ; LMS,
+                       estado      : ok >
+        < OP : Proceso | datos : CS >
+        =>
+        < OC : Canal | listaOrigen : LMS >
+        < OP : Proceso | datos : MSG CS >
+        [print "can.ro->msj"] .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | En esta regla sacaremos los mensajes emitidos por algún nodo cualquiera hacia  |
+    *** | el "destino" del canal, por lo que se tomaran de la lista de destino.          |
+    *** |--------------------------------------------------------------------------------|
+
+    rl[can.rd->msj] :
+        < OC : Canal | destino      : OP,
+                       listaDestino : MSG ; LMS,
+                       estado       : ok >
+        < OP : Proceso | datos : CS >
+        =>
+        < OC : Canal | listaDestino : LMS >
+        < OP : Proceso | datos : MSG CS >
+        [print "can.rd->msj"] .
+
+--- **************************************************************************************
+--- * Ejercicio 15: Los canales pueden estropearse, así que debes hacer una regla que
+--- * “estropee” un canal cambiando su estado a error. Un canal estropeado nunca se
+--- * arregla.
+--- **************************************************************************************
+
+    rl[can.err] :
+        < OC : Canal | estado : ok >
+        =>
+        < OC : Canal | estado : error >
+        [print "can.err"] .
+
+--- **************************************************************************************
+--- * Ejercicio 16: Haz que cualquier nodo pueda usar el primer mensaje para mandar
+--- * exactamente un mensaje a cada uno de sus amigos (el texto puede ser cualquier
+--- * String; haz que se manden "hola").
+--- **************************************************************************************
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Esta función toma un conjunto de cadenas con la lista de IPs de los amigos de  |
+    *** | un nodo y genera una configuración de mensajes con un texto para enviar.       |
+    *** |--------------------------------------------------------------------------------|
+
+    op generaMensajes : CjtoString String -> Configuration .
+    eq generaMensajes(cvacio, S') = none .
+    eq generaMensajes(S, S') = (to S : S') .
+    eq generaMensajes(S | CJ, S') = (to S : S') (generaMensajes(CJ, S')) .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | En esta regla vamos a emitir todos los mensajes iniciales de saludo.           |
+    *** |--------------------------------------------------------------------------------|
+
+    crl[nod.e->msj1] :
+        < OP : Proceso | datos :
+            < O : Nodo | estado : activo,
+                         amigos : CJ >
+            CS >
+        =>
+        < OP : Proceso | datos :
+            < O : Nodo | amigos : cvacio >
+            generaMensajes(CJ, "hola")
+            CS >
+        if CJ =/= cvacio
+        [print "nod.e->msj1"] .
+
+--- **************************************************************************************
+--- * Ejercicio 17: Haz que los objetos de tipo Centro se encarguen de transformar los
+--- * mensajes del primer tipo en mensajes del segundo tipo mirando en su tabla. Además,
+--- * si el mensaje es para el centro lo recibe de la misma manera que se explica abajo
+--- * para recibir mensajes en general.
+--- **************************************************************************************
+
+    *** |--------------------------------------------------------------------------------|
+    *** | En esta regla se recibe un mensaje inicial de saludo y se transforma para      |
+    *** | saber a qué proceso debe ser enviado.                                          |
+    *** |--------------------------------------------------------------------------------|
+
+    rl[cen.r->msj1.e->msj2] :
+        < OP : Proceso | datos :
+            (to S : S')
+            < O : Centro | tabla  : {S,O'} & T,
+                           estado : activo >
+            CS >
+        =>
+        < OP : Proceso | datos :
+            < O : Centro | >
+            (to O' : S')
+            CS >
+        [print "cen.r->msj1.e->msj2"] .
+
+--- **************************************************************************************
+--- * Ejercicio 18: Cuando un mensaje del segundo tipo llega a su destinatario (o se
+--- * encuentra uno del primer tipo dirigido al centro) el objeto concatena el mensaje
+--- * en su atributo recibido.
+--- **************************************************************************************
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Esta función agrega texto a otra cadena.                                       |
+    *** |--------------------------------------------------------------------------------|
+
+    op agregarTexto : String String -> String .
+    eq agregarTexto(S, S') =
+        if S == "" then
+            S'
+        else if S' == "" then
+            S
+        else
+            S + " " + S'
+        fi fi .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | En esta regla se recibe un mensaje inicial de saludo al encajar la IP que      |
+    *** | continene con la del nodo y simplemente agrega el texto.                       |
+    *** |--------------------------------------------------------------------------------|
+
+    rl[nod.r->msj1] :
+        < OP : Proceso | datos :
+            (to S : S'')
+            < O : Nodo | ip       : S,
+                         recibido : S',
+                         estado   : activo >
+            CS >
+        =>
+        < OP : Proceso | datos :
+            < O : Nodo | recibido : agregarTexto(S', S'') >
+            CS >
+        [print "nod.r->msj1"] .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | En esta regla se recibe un mensaje transformado de saludo y se añade el texto. |
+    *** |--------------------------------------------------------------------------------|
+
+    rl[nod.r->msj2] :
+        < OP : Proceso | datos :
+            (to O : S'')
+            < O : Nodo | recibido : S',
+                         estado   : activo >
+            CS >
+        =>
+        < OP : Proceso | datos :
+            < O : Nodo | recibido : agregarTexto(S', S'') >
+            CS >
+        [print "nod.r->msj2"] .
+
+--- **************************************************************************************
+--- * Ejercicio 19: Define una función numObjetos que cuenta el número de objetos en
+--- * una configuración.
+--- **************************************************************************************
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Esta función toma una configuración y si está vacía no hay objetos que contar. |
+    *** | Si no, miramos si hay un objeto en la configuración para añadir 1 al contador  |
+    *** | y hacer el conteo en el resto de la configuración. Si el siguiente elemento    |
+    *** | encontrado es no es un objeto, pasamos a realizar el conteo del resto.         |
+    *** |--------------------------------------------------------------------------------|
+
+    op numObjetos : Configuration -> Nat .
+    eq numObjetos(none) = 0 .
+    eq numObjetos(OBJ CS) = 1 + numObjetos(CS) .
+    eq numObjetos(MSG CS) = numObjetos(CS) .
+    eq numObjetos(PRT CS) = numObjetos(CS) .
+
+endom)
+
+(mod EJEMPLO is
+    pr RED-BASICA .
+
+--- **************************************************************************************
+--- * Ejercicio 20: Actualiza el término inicial de la sección anterior para que cada
+--- * objeto tenga 2 amigos.
+--- **************************************************************************************
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Configuración inicial para el ejercicio.                                       |
+    *** |--------------------------------------------------------------------------------|
+
+    op cfgI1 : -> Configuration .
+    eq cfgI1 =
+        < 'P0 : Proceso | datos :
+            nuevoCentro('P0, 1, "192.168.0.1", "192.168.0.1" | "192.168.1.1") >
+        < 'P1 : Proceso | datos :
+            nuevoExtremo('P1, 1, "192.168.1.1", "192.168.2.1" | "192.168.3.1")
+            nuevoExtremo('P1, 2, "192.168.1.2", "192.168.2.2" | "192.168.3.2")
+            nuevoExtremo('P1, 3, "192.168.1.3", "192.168.2.3" | "192.168.3.3") >
+        < 'P2 : Proceso | datos :
+            nuevoExtremo('P2, 1, "192.168.2.1", "192.168.1.1" | "192.168.3.1")
+            nuevoExtremo('P2, 2, "192.168.2.2", "192.168.1.2" | "192.168.3.2")
+            nuevoExtremo('P2, 3, "192.168.2.3", "192.168.1.3" | "192.168.3.3") >
+        < 'P3 : Proceso | datos :
+            nuevoExtremo('P3, 1, "192.168.3.1", "192.168.2.1" | "192.168.1.1")
+            nuevoExtremo('P3, 2, "192.168.3.2", "192.168.2.2" | "192.168.1.2")
+            nuevoExtremo('P3, 3, "192.168.3.3", "192.168.2.3" | "192.168.1.3") >
+        nuevoCanal('C1, 'P0, 'P1)
+        nuevoCanal('C2, 'P0, 'P2)
+        nuevoCanal('C3, 'P0, 'P3) .
+
+    op cfgI1b : -> Configuration .
+    eq cfgI1b =
+        < 'P0 : Proceso | datos :
+            nuevoCentro('P0, 1, "192.168.0.1", "192.168.0.1" | "192.168.1.1") >
+        < 'P1 : Proceso | datos :
+            nuevoExtremo('P1, 1, "192.168.1.1", "192.168.2.1" | "192.168.3.1") >
+        < 'P2 : Proceso | datos :
+            nuevoExtremo('P2, 1, "192.168.2.1", "192.168.1.1" | "192.168.3.1") >
+        < 'P3 : Proceso | datos :
+            nuevoExtremo('P3, 1, "192.168.3.1", "192.168.2.1" | "192.168.1.1") >
+        nuevoCanal('C1, 'P0, 'P1)
+        nuevoCanal('C2, 'P0, 'P2)
+        nuevoCanal('C3, 'P0, 'P3) .
+
+    op cfgI1c : -> Configuration .
+    eq cfgI1c =
+        < 'P0 : Proceso | datos :
+            nuevoCentro('P0, 1, "192.168.0.1", "192.168.0.1" | "192.168.1.1") >
+        < 'P1 : Proceso | datos :
+            nuevoExtremo('P1, 1, "192.168.1.1", "192.168.2.1" | "192.168.3.1") >
+        < 'P2 : Proceso | datos :
+            nuevoExtremo('P2, 1, "192.168.2.1", "192.168.1.1" | "192.168.3.1") >
+        nuevoCanal('C1, 'P0, 'P1)
+        nuevoCanal('C2, 'P0, 'P2) .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Configuraciones iniciales para pruebas específicas.                            |
+    *** |--------------------------------------------------------------------------------|
+
+    op cfgI2 : -> Configuration .
+    eq cfgI2 =
+        < 'P0 : Proceso | datos :
+            nuevoCentro('P0, 1, "192.168.0.1", "192.168.0.1" | "192.168.1.1" |
+                                               "192.168.2.1" | "192.168.3.1") >
+        < 'P1 : Proceso | datos :
+            nuevoExtremo('P1, 1, "192.168.1.1", "192.168.0.1" | "192.168.1.1")
+            nuevoExtremo('P1, 2, "192.168.1.2", "192.168.0.1" | "192.168.1.2")
+            nuevoExtremo('P1, 3, "192.168.1.3", "192.168.0.1" | "192.168.1.3") >
+        < 'P2 : Proceso | datos :
+            nuevoExtremo('P2, 1, "192.168.2.1", "192.168.0.1" | "192.168.2.1")
+            nuevoExtremo('P2, 2, "192.168.2.2", "192.168.0.1" | "192.168.2.2")
+            nuevoExtremo('P2, 3, "192.168.2.3", "192.168.0.1" | "192.168.2.3") >
+        < 'P3 : Proceso | datos :
+            nuevoExtremo('P3, 1, "192.168.3.1", "192.168.0.1" | "192.168.3.1")
+            nuevoExtremo('P3, 2, "192.168.3.2", "192.168.0.1" | "192.168.3.2")
+            nuevoExtremo('P3, 3, "192.168.3.3", "192.168.0.1" | "192.168.3.3") >
+        nuevoCanal('C1, 'P0, 'P1)
+        nuevoCanal('C2, 'P0, 'P2)
+        nuevoCanal('C3, 'P0, 'P3) .
+
+    op cfgI3 : -> Configuration .
+    eq cfgI3 =
+        < 'P0 : Proceso | datos :
+            nuevoCentro('P0, 1, "192.168.0.1", "192.168.0.1" | "192.168.1.1" |
+                                               "192.168.2.1" | "192.168.3.1") >
+        < 'P1 : Proceso | datos :
+            nuevoExtremo('P1, 1, "192.168.1.1")
+            nuevoExtremo('P1, 2, "192.168.1.2")
+            nuevoExtremo('P1, 3, "192.168.1.3") >
+        < 'P2 : Proceso | datos :
+            nuevoExtremo('P2, 1, "192.168.2.1")
+            nuevoExtremo('P2, 2, "192.168.2.2")
+            nuevoExtremo('P2, 3, "192.168.2.3") >
+        < 'P3 : Proceso | datos :
+            nuevoExtremo('P3, 1, "192.168.3.1")
+            nuevoExtremo('P3, 2, "192.168.3.2")
+            nuevoExtremo('P3, 3, "192.168.3.3") >
+        nuevoCanal('C1, 'P0, 'P1)
+        nuevoCanal('C2, 'P0, 'P2)
+        nuevoCanal('C3, 'P0, 'P3) .
+
+    op cfgI4 : -> Configuration .
+    eq cfgI4 =
+        < 'P0 : Proceso | datos :
+            nuevoCentro('P0, 1, "192.168.0.1") >
+        < 'P1 : Proceso | datos :
+            nuevoExtremo('P1, 1, "192.168.1.1", "192.168.0.1" | "192.168.1.1" |
+                                                "192.168.2.1" | "192.168.3.1")
+            nuevoExtremo('P1, 2, "192.168.1.2")
+            nuevoExtremo('P1, 3, "192.168.1.3") >
+        < 'P2 : Proceso | datos :
+            nuevoExtremo('P2, 1, "192.168.2.1")
+            nuevoExtremo('P2, 2, "192.168.2.2")
+            nuevoExtremo('P2, 3, "192.168.2.3") >
+        < 'P3 : Proceso | datos :
+            nuevoExtremo('P3, 1, "192.168.3.1")
+            nuevoExtremo('P3, 2, "192.168.3.2")
+            nuevoExtremo('P3, 3, "192.168.3.3") >
+        nuevoCanal('C1, 'P0, 'P1)
+        nuevoCanal('C2, 'P0, 'P2)
+        nuevoCanal('C3, 'P0, 'P3) .
+
+    op cfgI10 : -> Configuration .
+    eq cfgI10 =
+        < 'P0 : Proceso | datos :
+            nuevoCentro('P0, 1, "192.168.0.1", "192.168.0.1" | "192.168.1.1") >
+        < 'P1 : Proceso | datos :
+            nuevoExtremo('P1, 1, "192.168.1.1", "192.168.0.1" | "192.168.1.1") >
+        nuevoCanal('C1, 'P0, 'P1) .
+
+    op cfgI20 : -> Configuration .
+    eq cfgI20 =
+        < 'P0 : Proceso | datos :
+            nuevoCentro('P0, 1, "192.168.0.1") >
+        < 'P1 : Proceso | datos :
+            nuevoExtremo('P1, 1, "192.168.1.1")
+            nuevoExtremo('P1, 2, "192.168.1.2")
+            nuevoExtremo('P1, 3, "192.168.1.3") >
+        < 'P2 : Proceso | datos :
+            nuevoExtremo('P2, 1, "192.168.2.1")
+            nuevoExtremo('P2, 2, "192.168.2.2")
+            nuevoExtremo('P2, 3, "192.168.2.3") >
+        < 'P3 : Proceso | datos :
+            nuevoExtremo('P3, 1, "192.168.3.1")
+            nuevoExtremo('P3, 2, "192.168.3.2")
+            nuevoExtremo('P3, 3, "192.168.3.3") >
+        nuevoCanal('C1, 'P0, 'P1)
+        nuevoCanal('C2, 'P0, 'P2)
+        nuevoCanal('C3, 'P0, 'P3) .
+
+endm)
+
+***(**************************************************************************************
+
+set print attribute on .
+set print attribute newline on .
+
+Maude> (rew in EJEMPLO : cfgI1 .)
+Maude> (frew in EJEMPLO : cfgI1 .)
+Maude> (rew [500] in EJEMPLO : cfgI1 .)
+Maude> (frew [500] in EJEMPLO : cfgI1 .)
+
+*****************************************************************************************)
+
+--- **************************************************************************************
+--- * Ejercicio 21: Utiliza el comando search para comprobar que el número de objetos
+--- * permanece invariable durante toda la ejecución.
+--- **************************************************************************************
+
+***(**************************************************************************************
+
+Maude> (search in EJEMPLO : cfgI1 =>* C:Configuration s.t. numObjetos(C:Configuration) =/= numObjetos(cfgI1) .)
+### Mucho tiempo para ejecutarlo... ###
+
+Maude> (search in EJEMPLO : cfgI1b =>* C:Configuration s.t. numObjetos(C:Configuration) =/= numObjetos(cfgI1b) .)
+### Mucho tiempo para ejecutarlo... ###
+
+Maude> (search in EJEMPLO : cfgI1c =>* C:Configuration s.t. numObjetos(C:Configuration) =/= numObjetos(cfgI1c) .)
+search in EJEMPLO : cfgI1c =>* C:Configuration .
+
+No solution.
+
+Maude> (search in EJEMPLO : cfgI10 =>* C:Configuration s.t. numObjetos(C:Configuration) =/= numObjetos(cfgI10) .)
+search in EJEMPLO : cfgI10 =>* C:Configuration .
+
+No solution.
+
+*****************************************************************************************)
+
+--- **************************************************************************************
+--- ********************************* Parte 3: Análisis **********************************
+--- **************************************************************************************
+
+(mod RED-BASICA-PROPS is
+    pr RED-BASICA .
+    pr SATISFACTION .
+
+--- **************************************************************************************
+--- * Ejercicio 22: Define el estado sobre el que demostrarás las propiedades.
+--- **************************************************************************************
+
+    subsort Configuration < State .
+
+--- **************************************************************************************
+--- * Ejercicio 23: Define propiedades para:
+--- * + Comprobar si un cierto nodo existe, dada su IP.
+--- * + Comprobar si algún nodo tiene como amigo a un cierto nodo (identificado por
+--- *   su Oid).
+--- * + Comprobar si existe un mensaje para un cierto nodo (identificado por su IP).
+--- * + Comprobar si la cantidad de nodos es una cierta cantidad, dada como argumento.
+--- * + Comprobar si la cantidad de objetos de tipo Extremo es una cierta cantidad, dada
+--- *   como argumento.
+--- * + Comprobar si un cierto canal, cuyo Oid es dado como argumento, funciona.
+--- **************************************************************************************
+
+    var N : Nat .
+    var E : Estado .
+    var T : TablaIPs .
+    var CJ : CjtoString .
+    var EC : EstadoCanal .
+    var OBJ : Object .
+    var PRT : Portal .
+    var MSG : Msg .
+
+    vars S S' : String .
+    vars O O' O'' OP OP' : Oid .
+    vars LMS LMS' : ListaMsg .
+    vars CFG CS CS' : Configuration .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Funciones para comprobar los tipos de objeto.                                  |
+    *** |--------------------------------------------------------------------------------|
+
+    op esProceso : Object -> Bool .
+    eq esProceso(< O : Proceso | datos : CS >) = true .
+    eq esProceso(OBJ) = false [owise] .
+
+    op esNodo : Object -> Bool .
+    eq esNodo(< O : Nodo | ip : S, estado : E, recibido : S',
+              amigos : CJ >) = true .
+    eq esNodo(OBJ) = esCentro(OBJ) or esExtremo(OBJ) [owise] .
+
+    op esCentro : Object -> Bool .
+    eq esCentro(< O : Centro | ip : S, estado : E, recibido : S',
+                amigos : CJ, tabla : T >) = true .
+    eq esCentro(OBJ) = false [owise] .
+
+    op esExtremo : Object -> Bool .
+    eq esExtremo(< O : Extremo | ip : S, estado : E, recibido : S',
+                 amigos : CJ, centro : O' >) = true .
+    eq esExtremo(OBJ) = false [owise] .
+
+    op esCanal : Object -> Bool .
+    eq esCanal(< O : Canal | origen : O', destino : O'', listaOrigen : LMS,
+               listaDestino : LMS', estado : EC >) = true .
+    eq esCanal(OBJ) = false [owise] .
+
+    op esObjeto : Oid Object -> Bool .
+    eq esObjeto(O, < O : Proceso | datos : CS >) = true .
+    eq esObjeto(O, < O : Nodo | ip : S, estado : E, recibido : S',
+                amigos : CJ >) = true .
+    eq esObjeto(O, < O : Centro | ip : S, estado : E, recibido : S',
+                amigos : CJ, tabla : T >) = true .
+    eq esObjeto(O, < O : Extremo | ip : S, estado : E, recibido : S',
+                amigos : CJ, centro : O' >) = true .
+    eq esObjeto(O, < O : Canal | origen : O', destino : O'', listaOrigen : LMS,
+                listaDestino : LMS', estado : EC >) = true .
+    eq esObjeto(O, OBJ) = false [owise] .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Función para tener una configuración solo con objetos.                         |
+    *** |--------------------------------------------------------------------------------|
+
+    op listaObjs : Configuration -> Configuration .
+    eq listaObjs(none) = none .
+    eq listaObjs(PRT CS) = listaObjs(CS) .
+    eq listaObjs(MSG CS) = listaObjs(CS) .
+    eq listaObjs(OBJ CS) = OBJ listaObjs(CS) .
+
+    op listaPlanaObjs : Configuration -> Configuration .
+    eq listaPlanaObjs(none) = none .
+    eq listaPlanaObjs(PRT CS) = listaPlanaObjs(CS) .
+    eq listaPlanaObjs(MSG CS) = listaPlanaObjs(CS) .
+    eq listaPlanaObjs(OBJ CS) =
+        if esProceso(OBJ) then
+            OBJ listaPlanaObjs(dameDatos(OBJ)) listaPlanaObjs(CS)
+        else
+            OBJ listaPlanaObjs(CS)
+        fi .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Función para tener una configuración solo con mensajes.                        |
+    *** |--------------------------------------------------------------------------------|
+
+    op transfListaMsg : ListaMsg -> Configuration .
+    eq transfListaMsg(lvacia) = none .
+    eq transfListaMsg(MSG ; LMS) = MSG transfListaMsg(LMS) .
+
+    op dameMensajes : Object -> Configuration .
+    eq dameMensajes(< O : Canal | origen : O', destino : O'',
+        listaOrigen : LMS, listaDestino : LMS', estado : EC >) =
+        transfListaMsg(LMS) transfListaMsg(LMS') .
+    eq dameMensajes(OBJ) = none [owise] .
+
+    op listaPlanaMsjs : Configuration -> Configuration .
+    eq listaPlanaMsjs(none) = none .
+    eq listaPlanaMsjs(PRT CS) = listaPlanaMsjs(CS) .
+    eq listaPlanaMsjs(MSG CS) = MSG listaPlanaMsjs(CS) .
+    eq listaPlanaMsjs(OBJ CS) =
+        if esProceso(OBJ) then
+            listaPlanaMsjs(dameDatos(OBJ)) listaPlanaMsjs(CS)
+        else
+            if esCanal(OBJ) then
+                dameMensajes(OBJ) listaPlanaMsjs(CS)
+            else
+                listaPlanaMsjs(CS)
+            fi
+        fi .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Funciones para obtener algún atributo de algún objeto.                         |
+    *** |--------------------------------------------------------------------------------|
+
+    op dameDatos : Object -> Configuration .
+    eq dameDatos(< OP : Proceso | datos : CS >) = CS .
+    eq dameDatos(OBJ) = none [owise] .
+
+    op dameIP : Object -> String .
+    eq dameIP(< O : Nodo | ip : S, estado : E, recibido : S',
+              amigos : CJ >) = S .
+    eq dameIP(< O : Centro | ip : S, estado : E, recibido : S',
+              amigos : CJ, tabla : T >) = S .
+    eq dameIP(< O : Extremo | ip : S, estado : E, recibido : S',
+              amigos : CJ, centro : O' >) = S .
+    eq dameIP(OBJ) = "" [owise] .
+
+    op dameAmigos : Object -> CjtoString .
+    eq dameAmigos(< O : Nodo | ip : S, estado : E, recibido : S',
+                  amigos : CJ >) = CJ .
+    eq dameAmigos(< O : Centro | ip : S, estado : E, recibido : S',
+                  amigos : CJ, tabla : T >) = CJ .
+    eq dameAmigos(< O : Extremo | ip : S, estado : E, recibido : S',
+                  amigos : CJ, centro : O' >) = CJ .
+    eq dameAmigos(OBJ) = cvacio [owise] .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Funciones para contar objetos de algún tipo en particular.                     |
+    *** |--------------------------------------------------------------------------------|
+
+    op cuentaNodos' : Configuration -> Nat .
+    eq cuentaNodos'(none) = 0 .
+    eq cuentaNodos'(OBJ CS) =
+        if esNodo(OBJ) then
+            1 + cuentaNodos'(CS)
+        else
+            cuentaNodos'(CS)
+        fi .
+
+    op cuentaNodos : Configuration -> Nat .
+    eq cuentaNodos(CS) = cuentaNodos'(listaPlanaObjs(CS)) .
+
+    op cuentaExtremos' : Configuration -> Nat .
+    eq cuentaExtremos'(none) = 0 .
+    eq cuentaExtremos'(OBJ CS) =
+        if esExtremo(OBJ) then
+            1 + cuentaExtremos'(CS)
+        else
+            cuentaExtremos'(CS)
+        fi .
+
+    op cuentaExtremos : Configuration -> Nat .
+    eq cuentaExtremos(CS) = cuentaExtremos'(listaPlanaObjs(CS)) .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Funciones para comprobar que algún nodo tiene una IP dada.                     |
+    *** |--------------------------------------------------------------------------------|
+
+    op mismaIP? : Object String -> Bool .
+    eq mismaIP?(< O : Nodo | ip : S, estado : E, recibido : S',
+                amigos : CJ >, S) = true .
+    eq mismaIP?(< O : Centro | ip : S, estado : E, recibido : S',
+                amigos : CJ, tabla : T >, S) = true .
+    eq mismaIP?(< O : Extremo | ip : S, estado : E, recibido : S',
+                amigos : CJ, centro : O' >, S) = true .
+    eq mismaIP?(OBJ, S) = false [owise] .
+
+    op existeIP' : Configuration String -> Bool .
+    eq existeIP'(none, S) = false .
+    eq existeIP'(OBJ CS, S) =
+        if mismaIP?(OBJ, S) then
+            true
+        else
+            existeIP'(CS, S)
+        fi .
+
+    op existeIP? : Configuration String -> Bool .
+    eq existeIP?(CS, S) = existeIP'(listaPlanaObjs(CS), S) .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Funciones para comprobar que un nodo es amigo de algún otro nodo.              |
+    *** |--------------------------------------------------------------------------------|
+
+    op existeAmigo : CjtoString String -> Bool .
+    eq existeAmigo(S | CJ, S) = true .
+    eq existeAmigo(CJ, S) = false [owise] .
+
+    op esAmigoDeAlguien' : Configuration String -> Bool .
+    eq esAmigoDeAlguien'(none, S) = false .
+    eq esAmigoDeAlguien'(OBJ CS, S) =
+        if existeAmigo(dameAmigos(OBJ), S) then
+            true
+        else
+            esAmigoDeAlguien'(CS, S)
+        fi .
+
+    op esAmigoDeAlguien? : Configuration String -> Bool .
+    eq esAmigoDeAlguien?(CS, S) = esAmigoDeAlguien'(listaPlanaObjs(CS), S) .
+
+    op encuentraIP' : Configuration Oid -> String .
+    eq encuentraIP'(none, O) = "" .
+    eq encuentraIP'(OBJ CS, O) =
+        if esObjeto(O, OBJ) then
+            dameIP(OBJ)
+        else
+            encuentraIP'(CS, O)
+        fi .
+
+    op encuentraIP : Configuration Oid -> String .
+    eq encuentraIP(CS, O) = encuentraIP'(listaPlanaObjs(CS), O) .
+
+    op esAmigoDeAlguien? : Configuration Oid -> Bool .
+    ceq esAmigoDeAlguien?(CS, O) = esAmigoDeAlguien'(CS', S')
+        if CS' := listaPlanaObjs(CS) /\ S' := encuentraIP'(CS', O) /\ S' =/= "" .
+    eq esAmigoDeAlguien?(CS, O) = false [owise] .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Funciones para comprobar que existe algún mensaje para una IP.                 |
+    *** |--------------------------------------------------------------------------------|
+
+    op hayMsjParaIP' : Configuration String -> Bool .
+    eq hayMsjParaIP'(none, S) = false .
+    eq hayMsjParaIP'((to S : S') CS, S) = true .
+    eq hayMsjParaIP'(MSG CS, S) = hayMsjParaIP'(CS, S) [owise] .
+
+    op hayMsjParaIP? : Configuration String -> Bool .
+    eq hayMsjParaIP?(CS, S) = hayMsjParaIP'(listaPlanaMsjs(CS), S) .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Comprueba que existe un nodo con una determinada dirección IP.                 |
+    *** |--------------------------------------------------------------------------------|
+
+    op existeNodo : String -> Prop [ctor] .
+    eq CFG |= existeNodo(S) = (existeIP?(CFG, S) == true) .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Comprueba que existe un nodo que sea amigo de al menos otro nodo.              |
+    *** |--------------------------------------------------------------------------------|
+
+    op esAmigo : Oid -> Prop [ctor] .
+    eq CFG |= esAmigo(O) = (esAmigoDeAlguien?(CFG, O) == true) .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Comprueba que existe un mensaje enviado a una dirección IP determinada.        |
+    *** |--------------------------------------------------------------------------------|
+
+    op existeMsjPara : String -> Prop [ctor] .
+    eq CFG |= existeMsjPara(S) = (hayMsjParaIP?(CFG, S) == true) .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Comprueba que existe un número indicado de objetos de tipo "Nodo".             |
+    *** |--------------------------------------------------------------------------------|
+
+    op existeNNodos : Nat -> Prop [ctor] .
+    eq CFG |= existeNNodos(N) = (cuentaNodos(CFG) == N) .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Comprueba que existe un número indicado de objetos de tipo "Extremo".          |
+    *** |--------------------------------------------------------------------------------|
+
+    op existeNExtremos : Nat -> Prop [ctor] .
+    eq CFG |= existeNExtremos(N) = (cuentaExtremos(CFG) == N) .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Comprueba si el canal indicado sigue en funcionamiento.                        |
+    *** |--------------------------------------------------------------------------------|
+
+    op funcionaCanal : Oid -> Prop [ctor] .
+    eq < O : Canal | origen : O', destino : O'', listaOrigen : LMS,
+                     listaDestino : LMS', estado : ok >
+       CFG |= funcionaCanal(O) = true .
+
+endm)
+
+***(**************************************************************************************
+
+                            |============================|
+                            | Pruebas de las propiedades |
+                            |============================|
+
+*****************************************************************************************)
+
+(mod TEST-PROPS is
+    pr MODEL-CHECKER .
+    pr LTL-SIMPLIFIER .
+    pr RED-BASICA-PROPS .
+
+    op initial : -> Configuration .
+    eq initial =
+        < 'P0 : Proceso | datos :
+            nuevoCentro('P0, 1, "192.168.0.1", "192.168.1.1" | "192.168.2.1") >
+        < 'P1 : Proceso | datos :
+            nuevoExtremo('P1, 1, "192.168.1.1", "192.168.0.1" | "192.168.2.1")
+            nuevoExtremo('P1, 2, "192.168.1.2", "192.168.0.1" | "192.168.2.2") >
+        < 'P2 : Proceso | datos :
+            nuevoExtremo('P2, 1, "192.168.2.1", "192.168.0.1" | "192.168.1.1")
+            nuevoExtremo('P2, 2, "192.168.2.2", "192.168.0.1" | "192.168.1.2") >
+        < 'P3 : Proceso | datos :
+            nuevoExtremo('P3, 1, "192.168.3.1", "192.168.0.1" | "192.168.1.1")
+            nuevoExtremo('P3, 2, "192.168.3.2", "192.168.3.1" | "192.168.2.1") >
+        nuevoCanal('C1, 'P0, 'P1)
+        nuevoCanal('C2, 'P0, 'P2)
+        nuevoCanal('C3, 'P0, 'P3) .
+
+    op initial2 : -> Configuration .
+    eq initial2 =
+        < 'P0 : Proceso | datos :
+            nuevoCentro('P0, 1, "192.168.0.1", "192.168.1.1") >
+        < 'P1 : Proceso | datos :
+            nuevoExtremo('P1, 1, "192.168.1.1", "192.168.0.1") >
+        nuevoCanal('C1, 'P0, 'P1) .
+
+    op initial3 : -> Configuration .
+    eq initial3 =
+        < 'P0 : Proceso | datos :
+            nuevoCentro('P0, 1, "192.168.0.1", "192.168.1.1") >
+        < 'P1 : Proceso | datos :
+            nuevoExtremo('P1, 1, "192.168.1.1", "192.168.0.1") >
+        < 'P2 : Proceso | datos :
+            nuevoExtremo('P2, 1, "192.168.2.1", "192.168.0.1" | "192.168.1.1") >
+        nuevoCanal('C1, 'P0, 'P1)
+        nuevoCanal('C2, 'P0, 'P2) .
+endm)
+
+***(**************************************************************************************
+
+Maude> (red modelCheck(initial, existeNodo("192.168.1.1")) .)
+reduce in TEST-PROPS :
+  modelCheck(initial,existeNodo("192.168.1.1"))
+result Bool :
+  true
+
+Maude> (red modelCheck(initial, existeNodo("192.168.1.255")) .)
+reduce in TEST-PROPS :
+  modelCheck(initial,existeNodo("192.168.1.255"))
+result ModelCheckResult :
+  counterexample(...)
+
+Maude> (red modelCheck(initial, esAmigo(n('P1,1))) .)
+reduce in TEST-PROPS :
+  modelCheck(initial,esAmigo(n('P1,1)))
+result Bool :
+  true
+
+Maude> (red modelCheck(initial, esAmigo(n('P3,2))) .)
+reduce in TEST-PROPS :
+  modelCheck(initial,esAmigo(n('P3,2)))
+result ModelCheckResult :
+  counterexample(...)
+
+Maude> (red modelCheck(initial, existeNNodos(cuentaNodos(initial))) .)
+reduce in TEST-PROPS :
+  modelCheck(initial,existeNNodos(cuentaNodos(initial)))
+result Bool :
+  true
+
+Maude> (red modelCheck(initial, existeNExtremos(cuentaExtremos(initial))) .)
+reduce in TEST-PROPS :
+  modelCheck(initial,funcionaCanal(cuentaExtremos(initial)))
+result Bool :
+  true
+
+Maude> (red modelCheck(initial, funcionaCanal('C1)) .)
+reduce in TEST-PROPS :
+  modelCheck(initial,funcionaCanal('C1))
+result Bool :
+  true
+
+*****************************************************************************************)
+
+--- **************************************************************************************
+--- * Ejercicio 24: Comprueba las siguientes propiedades con el término inicial de la
+--- * sección anterior. Explica brevemente el resultado: si es cierta explica por qué
+--- * lo es, si es falsa explica qué crees que indica el contraejemplo.
+--- * + La cantidad de nodos no varía.
+--- * + Si un nodo existe y otro lo tiene como amigo, le acaba mandando un mensaje.
+--- * + Cualquier mensaje acaba desapareciendo.
+--- **************************************************************************************
+
+***(**************************************************************************************
+
+                            |================================|
+                            | La cantidad de nodos no varía. |
+                            |================================|
+
+Maude> (red modelCheck(initial, [] existeNNodos(cuentaNodos(initial))) .)
+### Mucho tiempo para ejecutarlo... ###
+
+Maude> (red modelCheck(initial2, [] existeNNodos(cuentaNodos(initial2))) .)
+reduce in TEST-PROPS :
+  modelCheck(initial2,[]existeNNodos(cuentaNodos(initial2)))
+result Bool :
+  true
+
+Maude> (red modelCheck(initial3, [] existeNNodos(cuentaNodos(initial3))) .)
+reduce in TEST-PROPS :
+  modelCheck(initial3,[]existeNNodos(cuentaNodos(initial3)))
+result Bool :
+  true
+
+### Explicación:
+### A pesar de todas las transformaciones indicadas en las reglas, ninguna conlleva
+### a la desaparición de ningún objeto, con lo que se hace imposible que el número
+### de nodos varíe a lo largo de cualquier ejecución.
+
+     |=============================================================================|
+     | Si un nodo existe y otro lo tiene como amigo, le acaba mandando un mensaje. |
+     |=============================================================================|
+
+Maude> (red modelCheck(initial, (existeNodo("192.168.1.1") /\ esAmigo(n('P1, 1))) -> existeMsjPara("192.168.1.1")) .)
+reduce in TEST-PROPS :
+  modelCheck(initial, existeNodo("192.168.1.1") /\ esAmigo(n('P1,1)) -> existeMsjPara("192.168.1.1"))
+result ModelCheckResult :
+  counterexample(
+  {
+    < 'C1 : Canal | destino : 'P1, estado : ok, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C2 : Canal | destino : 'P2, estado : ok, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C3 : Canal | destino : 'P3, estado : ok, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'P0 : Proceso | datos :
+        < n('P0,1) : Centro | amigos : ("192.168.1.1" | "192.168.2.1"), estado : inactivo, ip : "192.168.0.1", recibido : "", tabla : tvacia >
+    >
+    < 'P1 : Proceso | datos : (
+        < n('P1,1) : Extremo | amigos : ("192.168.0.1" | "192.168.2.1"), centro : null, estado : inactivo, ip : "192.168.1.1", recibido : "" >
+        < n('P1,2) : Extremo | amigos : ("192.168.0.1" | "192.168.2.2"), centro : null, estado : inactivo, ip : "192.168.1.2", recibido : "" >
+    ) >
+    < 'P2 : Proceso | datos : (
+        < n('P2,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : inactivo, ip : "192.168.2.1", recibido : "" >
+        < n('P2,2) : Extremo | amigos : ("192.168.0.1" | "192.168.1.2"), centro : null, estado : inactivo, ip : "192.168.2.2", recibido : "" >
+    ) >
+    < 'P3 : Proceso | datos : (
+        < n('P3,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : inactivo, ip : "192.168.3.1", recibido : "" >
+        < n('P3,2) : Extremo | amigos : ("192.168.2.1" | "192.168.3.1"), centro : null, estado : inactivo, ip : "192.168.3.2", recibido : "" >
+    ) >,
+    'can.err
+  }
+  {
+    < 'C1 : Canal | destino : 'P1, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C2 : Canal | destino : 'P2, estado : ok, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C3 : Canal | destino : 'P3, estado : ok, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'P0 : Proceso | datos :
+        < n('P0,1) : Centro | amigos : ("192.168.1.1" | "192.168.2.1"), estado : inactivo, ip : "192.168.0.1", recibido : "", tabla : tvacia >
+    >
+    < 'P1 : Proceso | datos : (
+        < n('P1,1) : Extremo | amigos : ("192.168.0.1" | "192.168.2.1"), centro : null, estado : inactivo, ip : "192.168.1.1", recibido: "" >
+        < n('P1,2) : Extremo | amigos : ("192.168.0.1" | "192.168.2.2"), centro : null, estado : inactivo, ip : "192.168.1.2", recibido : "" >
+    ) >
+    < 'P2 : Proceso | datos : (
+        < n('P2,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : inactivo, ip : "192.168.2.1", recibido: "" >
+        < n('P2,2) : Extremo | amigos : ("192.168.0.1" | "192.168.1.2"), centro : null, estado : inactivo, ip : "192.168.2.2", recibido : "" >
+    ) >
+    < 'P3 : Proceso | datos : (
+        < n('P3,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : inactivo, ip : "192.168.3.1", recibido: "" >
+        < n('P3,2) : Extremo | amigos : ("192.168.2.1" | "192.168.3.1"), centro : null, estado : inactivo, ip : "192.168.3.2", recibido : "" >
+    ) >,
+    'can.err
+  }
+  {
+    < 'C1 : Canal | destino : 'P1, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C2 : Canal | destino : 'P2, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C3 : Canal | destino : 'P3, estado : ok, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'P0 : Proceso | datos :
+        < n('P0,1) : Centro | amigos : ("192.168.1.1" | "192.168.2.1"), estado : inactivo, ip : "192.168.0.1", recibido : "", tabla : tvacia >
+    >
+    < 'P1 : Proceso | datos : (
+        < n('P1,1) : Extremo | amigos : ("192.168.0.1" | "192.168.2.1"), centro : null, estado : inactivo, ip : "192.168.1.1", recibido : "" >
+        < n('P1,2) : Extremo | amigos : ("192.168.0.1" | "192.168.2.2"), centro : null, estado : inactivo, ip : "192.168.1.2", recibido : "" >
+    ) >
+    < 'P2 : Proceso | datos : (
+        < n('P2,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : inactivo, ip : "192.168.2.1", recibido : "" >
+        < n('P2,2) : Extremo | amigos : ("192.168.0.1" | "192.168.1.2"), centro : null, estado : inactivo, ip : "192.168.2.2", recibido : "" >
+    ) >
+    < 'P3 : Proceso | datos : (
+        < n('P3,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : inactivo, ip : "192.168.3.1", recibido : "" >
+        < n('P3,2) : Extremo | amigos : ("192.168.2.1" | "192.168.3.1"), centro : null, estado : inactivo, ip : "192.168.3.2", recibido : "" >
+    ) >,
+    'can.err
+  }
+  {
+    < 'C1 : Canal | destino : 'P1, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C2 : Canal | destino : 'P2, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C3 : Canal | destino : 'P3, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'P0 : Proceso | datos :
+        < n('P0,1) : Centro | amigos : ("192.168.1.1" | "192.168.2.1"), estado : inactivo, ip : "192.168.0.1", recibido : "", tabla : tvacia >
+    >
+    < 'P1 : Proceso | datos : (
+        < n('P1,1) : Extremo | amigos : ("192.168.0.1" | "192.168.2.1"), centro : null, estado : inactivo, ip : "192.168.1.1", recibido : "" >
+        < n('P1,2) : Extremo | amigos : ("192.168.0.1" | "192.168.2.2"), centro : null, estado : inactivo, ip : "192.168.1.2", recibido : "" >
+    ) >
+    < 'P2 : Proceso | datos : (
+        < n('P2,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : inactivo, ip : "192.168.2.1", recibido : "" >
+        < n('P2,2) : Extremo | amigos : ("192.168.0.1" | "192.168.1.2"), centro : null, estado : inactivo, ip : "192.168.2.2", recibido : "" >
+    ) >
+    < 'P3 : Proceso | datos : (
+        < n('P3,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : inactivo, ip : "192.168.3.1", recibido : "" >
+        < n('P3,2) : Extremo | amigos : ("192.168.2.1" | "192.168.3.1"), centro : null, estado : inactivo, ip : "192.168.3.2", recibido : "" >
+    ) >,
+    'ext.e->inf
+  }
+  {
+    < 'C1 : Canal | destino : 'P1, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C2 : Canal | destino : 'P2, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C3 : Canal | destino : 'P3, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'P0 : Proceso | datos :
+        < n('P0,1) : Centro | amigos : ("192.168.1.1" | "192.168.2.1"), estado : inactivo, ip : "192.168.0.1", recibido : "", tabla : tvacia >
+    >
+    < 'P1 : Proceso | datos : (
+        info("192.168.1.1", n('P1,1))
+        < n('P1,1) : Extremo | amigos : ("192.168.0.1" | "192.168.2.1"), centro : null, estado : esperando, ip : "192.168.1.1", recibido : "" >
+        < n('P1,2) : Extremo | amigos : ("192.168.0.1" | "192.168.2.2"), centro : null, estado : inactivo, ip : "192.168.1.2", recibido : "" >
+    ) >
+    < 'P2 : Proceso | datos : (
+        < n('P2,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : inactivo, ip : "192.168.2.1", recibido : "" >
+        < n('P2,2) : Extremo | amigos : ("192.168.0.1" | "192.168.1.2"), centro : null, estado : inactivo, ip : "192.168.2.2", recibido : "" >
+    ) >
+    < 'P3 : Proceso | datos : (
+        < n('P3,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : inactivo, ip : "192.168.3.1", recibido : "" >
+        < n('P3,2) : Extremo | amigos : ("192.168.2.1" | "192.168.3.1"), centro : null, estado : inactivo, ip : "192.168.3.2", recibido : "" >
+    ) >,
+    'ext.e->inf
+  }
+  {
+    < 'C1 : Canal | destino : 'P1, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C2 : Canal | destino : 'P2, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C3 : Canal | destino : 'P3, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'P0 : Proceso | datos :
+        < n('P0,1) : Centro | amigos : ("192.168.1.1" | "192.168.2.1"), estado : inactivo, ip : "192.168.0.1", recibido : "", tabla : tvacia >
+    >
+    < 'P1 : Proceso | datos : (
+        info("192.168.1.1", n('P1,1))
+        info("192.168.1.2", n('P1,2))
+        < n('P1,1) : Extremo | amigos : ("192.168.0.1" | "192.168.2.1"), centro : null, estado : esperando, ip : "192.168.1.1", recibido : "" >
+        < n('P1,2) : Extremo | amigos : ("192.168.0.1" | "192.168.2.2"), centro : null, estado : esperando, ip : "192.168.1.2", recibido : "" >
+    ) >
+    < 'P2 : Proceso | datos : (
+        < n('P2,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : inactivo, ip : "192.168.2.1", recibido : "" >
+        < n('P2,2) : Extremo | amigos : ("192.168.0.1" | "192.168.1.2"), centro : null, estado : inactivo, ip : "192.168.2.2", recibido : "" >
+    ) >
+    < 'P3 : Proceso | datos : (
+        < n('P3,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : inactivo, ip : "192.168.3.1", recibido : "" >
+        < n('P3,2) : Extremo | amigos : ("192.168.2.1" | "192.168.3.1"), centro : null, estado : inactivo, ip : "192.168.3.2", recibido : "" >
+    ) >,
+    'ext.e->inf
+  }
+  {
+    < 'C1 : Canal | destino : 'P1, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C2 : Canal | destino : 'P2, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C3 : Canal | destino : 'P3, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'P0 : Proceso | datos :
+        < n('P0,1) : Centro | amigos : ("192.168.1.1" | "192.168.2.1"), estado : inactivo, ip : "192.168.0.1", recibido : "", tabla : tvacia >
+    >
+    < 'P1 : Proceso | datos : (
+        info("192.168.1.1", n('P1,1))
+        info("192.168.1.2", n('P1,2))
+        < n('P1,1) : Extremo | amigos : ("192.168.0.1" | "192.168.2.1"), centro : null, estado : esperando, ip : "192.168.1.1", recibido : "" >
+        < n('P1,2) : Extremo | amigos : ("192.168.0.1" | "192.168.2.2"), centro : null, estado : esperando, ip : "192.168.1.2", recibido : "" >
+    ) >
+    < 'P2 : Proceso | datos : (
+        info("192.168.2.1", n('P2,1))
+        < n('P2,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : esperando, ip : "192.168.2.1", recibido : "" >
+        < n('P2,2) : Extremo | amigos : ("192.168.0.1" | "192.168.1.2"), centro : null, estado : inactivo, ip : "192.168.2.2", recibido : "" >
+    ) >
+    < 'P3 : Proceso | datos : (
+        < n('P3,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : inactivo, ip : "192.168.3.1", recibido : "" >
+        < n('P3,2) : Extremo | amigos : ("192.168.2.1" | "192.168.3.1"), centro : null, estado : inactivo, ip : "192.168.3.2", recibido : "" >
+    ) >,
+    'ext.e->inf
+  }
+  {
+    < 'C1 : Canal | destino : 'P1, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C2 : Canal | destino : 'P2, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C3 : Canal | destino : 'P3, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'P0 : Proceso | datos :
+        < n('P0,1) : Centro | amigos : ("192.168.1.1" | "192.168.2.1"), estado : inactivo, ip : "192.168.0.1", recibido : "", tabla : tvacia >
+    >
+    < 'P1 : Proceso | datos : (
+        info("192.168.1.1", n('P1,1))
+        info("192.168.1.2", n('P1,2))
+        < n('P1,1) : Extremo | amigos : ("192.168.0.1" | "192.168.2.1"), centro : null, estado : esperando, ip : "192.168.1.1", recibido : "" >
+        < n('P1,2) : Extremo | amigos : ("192.168.0.1" | "192.168.2.2"), centro : null, estado : esperando, ip : "192.168.1.2", recibido : "" >
+    ) >
+    < 'P2 : Proceso | datos : (
+        info("192.168.2.1", n('P2,1))
+        info("192.168.2.2", n('P2,2))
+        < n('P2,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : esperando, ip : "192.168.2.1", recibido : "" >
+        < n('P2,2) : Extremo | amigos : ("192.168.0.1" | "192.168.1.2"), centro : null, estado : esperando, ip : "192.168.2.2", recibido : "" >
+    ) >
+    < 'P3 : Proceso | datos : (
+        < n('P3,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : inactivo, ip : "192.168.3.1", recibido : "" >
+        < n('P3,2) : Extremo | amigos : ("192.168.2.1" | "192.168.3.1"), centro : null, estado : inactivo, ip : "192.168.3.2", recibido : "" >
+    ) >,
+    'ext.e->inf
+  }
+  {
+    < 'C1 : Canal | destino : 'P1, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C2 : Canal | destino : 'P2, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C3 : Canal | destino : 'P3, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'P0 : Proceso | datos :
+        < n('P0,1) : Centro | amigos : ("192.168.1.1" | "192.168.2.1"), estado : inactivo, ip : "192.168.0.1", recibido : "", tabla : tvacia >
+    >
+    < 'P1 : Proceso | datos : (
+        info("192.168.1.1", n('P1,1))
+        info("192.168.1.2", n('P1,2))
+        < n('P1,1) : Extremo | amigos : ("192.168.0.1" | "192.168.2.1"), centro : null, estado : esperando, ip : "192.168.1.1", recibido : "" >
+        < n('P1,2) : Extremo | amigos : ("192.168.0.1" | "192.168.2.2"), centro : null, estado : esperando, ip : "192.168.1.2", recibido : "" >
+    ) >
+    < 'P2 : Proceso | datos : (
+        info("192.168.2.1", n('P2,1))
+        info("192.168.2.2", n('P2,2))
+        < n('P2,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : esperando, ip : "192.168.2.1", recibido : "" >
+        < n('P2,2) : Extremo | amigos : ("192.168.0.1" | "192.168.1.2"), centro : null, estado : esperando, ip : "192.168.2.2", recibido : "" >
+    ) >
+    < 'P3 : Proceso | datos : (
+        info("192.168.3.1", n('P3,1))
+        < n('P3,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : esperando, ip : "192.168.3.1", recibido : "" >
+        < n('P3,2) : Extremo | amigos : ("192.168.2.1" | "192.168.3.1"), centro : null, estado : inactivo, ip : "192.168.3.2", recibido : "" >
+    ) >,
+    'ext.e->inf
+  },
+  {
+    < 'C1 : Canal | destino : 'P1, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C2 : Canal | destino : 'P2, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C3 : Canal | destino : 'P3, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'P0 : Proceso | datos :
+        < n('P0,1) : Centro | amigos : ("192.168.1.1" | "192.168.2.1"), estado : inactivo, ip : "192.168.0.1", recibido : "", tabla : tvacia >
+    >
+    < 'P1 : Proceso | datos : (
+        info("192.168.1.1", n('P1,1))
+        info("192.168.1.2", n('P1,2))
+        < n('P1,1) : Extremo | amigos : ("192.168.0.1" | "192.168.2.1"), centro : null, estado : esperando, ip : "192.168.1.1", recibido : "" >
+        < n('P1,2) : Extremo | amigos : ("192.168.0.1" | "192.168.2.2"), centro : null, estado : esperando, ip : "192.168.1.2", recibido : "" >
+    ) >
+    < 'P2 : Proceso | datos : (
+        info("192.168.2.1", n('P2,1))
+        info("192.168.2.2", n('P2,2))
+        < n('P2,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : esperando, ip : "192.168.2.1", recibido : "" >
+        < n('P2,2) : Extremo | amigos : ("192.168.0.1" | "192.168.1.2"), centro : null, estado : esperando, ip : "192.168.2.2", recibido : "" >
+    ) >
+    < 'P3 : Proceso | datos : (
+        info("192.168.3.1", n('P3,1))
+        info("192.168.3.2", n('P3,2))
+        < n('P3,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : esperando, ip : "192.168.3.1", recibido : "" >
+        < n('P3,2) : Extremo | amigos : ("192.168.2.1" | "192.168.3.1"), centro : null, estado : esperando, ip : "192.168.3.2", recibido : "" >
+    ) >,
+    deadlock
+  })
+
+### Explicación:
+### El contra ejemplo viene a exponer la situación en la que, a pesar de poder ser amigo
+### de alguien, puede no llegarte el mensaje de saludo. Puede ocurrir que los canales se
+### fastidien, con lo que tendríamos que los nodos implicados en la demostración nunca
+### se llegarían a activar y si no lo hacen no pueden mandar el mensaje, con lo que nunca
+### existiría ningún mensaje con destino al nodo implicado en la comprobación.
+
+                       |=========================================|
+                       | Cualquier mensaje acaba desapareciendo. |
+                       |=========================================|
+
+Maude> (red modelCheck(initial, []((<> existeMsjPara("192.168.1.1")) -> (<> (~ existeMsjPara("192.168.1.1"))))) .)
+reduce in TEST-PROPS :
+  modelCheck(initial, [](<> existeMsjPara("192.168.1.1") -> <> ~ existeMsjPara("192.168.1.1")))
+result ModelCheckResult :
+  counterexample(
+  {
+    < 'C1 : Canal | destino : 'P1, estado : ok, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C2 : Canal | destino : 'P2, estado : ok, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C3 : Canal | destino : 'P3, estado : ok, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'P0 : Proceso | datos :
+        < n('P0, 1) : Centro | amigos : ("192.168.1.1" | "192.168.2.1"), estado : inactivo, ip : "192.168.0.1", recibido : "", tabla : tvacia >
+    >
+    < 'P1 : Proceso | datos : (
+        < n('P1,1) : Extremo | amigos : ("192.168.0.1" | "192.168.2.1"), centro : null, estado : inactivo, ip : "192.168.1.1", recibido : "" >
+        < n('P1,2) : Extremo | amigos : ("192.168.0.1" | "192.168.2.2"), centro : null, estado : inactivo, ip : "192.168.1.2", recibido : "" >
+    ) >
+    < 'P2 : Proceso | datos : (
+        < n('P2,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : inactivo, ip : "192.168.2.1", recibido : "" >
+        < n('P2,2) : Extremo | amigos : ("192.168.0.1" | "192.168.1.2"), centro : null, estado : inactivo, ip : "192.168.2.2", recibido : "" >
+    ) >
+    < 'P3 : Proceso | datos : (
+        < n('P3,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : inactivo, ip : "192.168.3.1", recibido : "" >
+        < n('P3,2) : Extremo | amigos : ("192.168.2.1" | "192.168.3.1"), centro : null, estado : inactivo, ip : "192.168.3.2", recibido : "" >
+    ) >,
+    'can.err
+  }
+  {
+    < 'C1 : Canal | destino : 'P1, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C2 : Canal | destino : 'P2, estado : ok, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C3 : Canal | destino : 'P3, estado : ok, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'P0 : Proceso | datos :
+        < n('P0, 1) : Centro | amigos : ("192.168.1.1" | "192.168.2.1"), estado : inactivo, ip : "192.168.0.1", recibido : "", tabla : tvacia >
+    >
+    < 'P1 : Proceso | datos : (
+        < n('P1,1) : Extremo | amigos : ("192.168.0.1" | "192.168.2.1"), centro : null, estado : inactivo, ip : "192.168.1.1", recibido : "" >
+        < n('P1,2) : Extremo | amigos : ("192.168.0.1" | "192.168.2.2"), centro : null, estado : inactivo, ip : "192.168.1.2", recibido : "" >
+    ) >
+    < 'P2 : Proceso | datos : (
+        < n('P2,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : inactivo, ip : "192.168.2.1", recibido : "" >
+        < n('P2,2) : Extremo | amigos : ("192.168.0.1" | "192.168.1.2"), centro : null, estado : inactivo, ip : "192.168.2.2", recibido : "" >
+    ) >
+    < 'P3 : Proceso | datos : (
+        < n('P3,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : inactivo, ip : "192.168.3.1", recibido : "" >
+        < n('P3,2) : Extremo | amigos : ("192.168.2.1" | "192.168.3.1"), centro : null, estado : inactivo, ip : "192.168.3.2", recibido : "" >
+    ) >,
+    'can.err
+  }
+  {
+    < 'C1 : Canal | destino : 'P1, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C2 : Canal | destino : 'P2, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C3 : Canal | destino : 'P3, estado : ok, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'P0 : Proceso | datos :
+        < n('P0, 1) : Centro | amigos : ("192.168.1.1" | "192.168.2.1"), estado : inactivo, ip : "192.168.0.1", recibido : "", tabla : tvacia >
+    >
+    < 'P1 : Proceso | datos : (
+        < n('P1,1) : Extremo | amigos : ("192.168.0.1" | "192.168.2.1"), centro : null, estado : inactivo, ip : "192.168.1.1", recibido : "" >
+        < n('P1,2) : Extremo | amigos : ("192.168.0.1" | "192.168.2.2"), centro : null, estado : inactivo, ip : "192.168.1.2", recibido : "" >
+    ) >
+    < 'P2 : Proceso | datos : (
+        < n('P2,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : inactivo, ip : "192.168.2.1", recibido : "" >
+        < n('P2,2) : Extremo | amigos : ("192.168.0.1" | "192.168.1.2"), centro : null, estado : inactivo, ip : "192.168.2.2", recibido : "" >
+    ) >
+    < 'P3 : Proceso | datos : (
+        < n('P3,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : inactivo, ip : "192.168.3.1", recibido : "" >
+        < n('P3,2) : Extremo | amigos : ("192.168.2.1" | "192.168.3.1"), centro : null, estado : inactivo, ip : "192.168.3.2", recibido : "" >
+    ) >,
+    'ext.e->inf
+  }
+  {
+    < 'C1 : Canal | destino : 'P1, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C2 : Canal | destino : 'P2, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C3 : Canal | destino : 'P3, estado : ok, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'P0 : Proceso | datos :
+    < n('P0, 1) : Centro | amigos : ("192.168.1.1" | "192.168.2.1"), estado : inactivo, ip : "192.168.0.1", recibido : "", tabla : tvacia >
+    >
+    < 'P1 : Proceso | datos : (
+        info("192.168.1.1", n('P1,1))
+        < n('P1,1) : Extremo | amigos : ("192.168.0.1" | "192.168.2.1"), centro : null, estado : esperando, ip : "192.168.1.1", recibido : "" >
+        < n('P1,2) : Extremo | amigos : ("192.168.0.1" | "192.168.2.2"), centro : null, estado : inactivo, ip : "192.168.1.2", recibido : "" >
+    ) >
+    < 'P2 : Proceso | datos : (
+        < n('P2,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : inactivo, ip : "192.168.2.1", recibido : "" >
+        < n('P2,2) : Extremo | amigos : ("192.168.0.1" | "192.168.1.2"), centro : null, estado : inactivo, ip : "192.168.2.2", recibido : "" >
+    ) >
+    < 'P3 : Proceso | datos : (
+        < n('P3,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : inactivo, ip : "192.168.3.1", recibido : "" >
+        < n('P3,2) : Extremo | amigos : ("192.168.2.1" | "192.168.3.1"), centro : null, estado : inactivo, ip : "192.168.3.2", recibido : "" >
+    ) >,
+    'ext.e->inf
+  }
+  {
+    < 'C1 : Canal | destino : 'P1, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C2 : Canal | destino : 'P2, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C3 : Canal | destino : 'P3, estado : ok, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'P0 : Proceso | datos :
+        < n('P0, 1) : Centro | amigos : ("192.168.1.1" | "192.168.2.1"), estado : inactivo, ip : "192.168.0.1", recibido : "", tabla : tvacia >
+    >
+    < 'P1 : Proceso | datos : (
+        info("192.168.1.1", n('P1,1))
+        info("192.168.1.2", n('P1,2))
+        < n('P1,1) : Extremo | amigos : ("192.168.0.1" | "192.168.2.1"), centro : null, estado : esperando, ip : "192.168.1.1", recibido : "" >
+        < n('P1,2) : Extremo | amigos : ("192.168.0.1" | "192.168.2.2"), centro : null, estado : esperando, ip : "192.168.1.2", recibido : "" >
+    ) >
+    < 'P2 : Proceso | datos : (
+        < n('P2,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : inactivo, ip : "192.168.2.1", recibido : "" >
+        < n('P2,2) : Extremo | amigos : ("192.168.0.1" | "192.168.1.2"), centro : null, estado : inactivo, ip : "192.168.2.2", recibido : "" >
+    ) >
+    < 'P3 : Proceso | datos : (
+        < n('P3,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : inactivo, ip : "192.168.3.1", recibido : "" >
+        < n('P3,2) : Extremo | amigos : ("192.168.2.1" | "192.168.3.1"), centro : null, estado : inactivo, ip : "192.168.3.2", recibido : "" >
+    ) >,
+    'ext.e->inf
+  }
+  {
+    < 'C1 : Canal | destino : 'P1, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C2 : Canal | destino : 'P2, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C3 : Canal | destino : 'P3, estado : ok, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'P0 : Proceso | datos :
+        < n('P0, 1) : Centro | amigos : ("192.168.1.1" | "192.168.2.1"), estado : inactivo, ip : "192.168.0.1", recibido : "", tabla : tvacia >
+    >
+    < 'P1 : Proceso | datos : (
+        info("192.168.1.1", n('P1,1))
+        info("192.168.1.2", n('P1,2))
+        < n('P1,1) : Extremo | amigos : ("192.168.0.1" | "192.168.2.1"), centro : null, estado : esperando, ip : "192.168.1.1", recibido : "" >
+        < n('P1,2) : Extremo | amigos : ("192.168.0.1" | "192.168.2.2"), centro : null, estado : esperando, ip : "192.168.1.2", recibido : "" >
+    ) >
+    < 'P2 : Proceso | datos : (
+        info("192.168.2.1", n('P2,1))
+        < n('P2,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : esperando, ip : "192.168.2.1", recibido : "" >
+        < n('P2,2) : Extremo | amigos : ("192.168.0.1" | "192.168.1.2"), centro : null, estado : inactivo, ip : "192.168.2.2", recibido : "" >
+    ) >
+    < 'P3 : Proceso | datos : (
+        < n('P3,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : inactivo, ip : "192.168.3.1", recibido : "" >
+        < n('P3,2) : Extremo | amigos : ("192.168.2.1" | "192.168.3.1"), centro : null, estado : inactivo, ip : "192.168.3.2", recibido : "" >
+    ) >,
+    'ext.e->inf
+  }
+  {
+    < 'C1 : Canal | destino : 'P1, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C2 : Canal | destino : 'P2, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C3 : Canal | destino : 'P3, estado : ok, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'P0 : Proceso | datos :
+        < n('P0, 1) : Centro | amigos : ("192.168.1.1" | "192.168.2.1"), estado : inactivo, ip : "192.168.0.1", recibido : "", tabla : tvacia >
+    >
+    < 'P1 : Proceso | datos : (
+        info("192.168.1.1", n('P1,1))
+        info("192.168.1.2", n('P1,2))
+        < n('P1,1) : Extremo | amigos : ("192.168.0.1" | "192.168.2.1"), centro : null, estado : esperando, ip : "192.168.1.1", recibido : "" >
+        < n('P1,2) : Extremo | amigos : ("192.168.0.1" | "192.168.2.2"), centro : null, estado : esperando, ip : "192.168.1.2", recibido : "" >
+    ) >
+    < 'P2 : Proceso | datos : (
+        info("192.168.2.1", n('P2,1))
+        info("192.168.2.2", n('P2,2))
+        < n('P2,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : esperando, ip : "192.168.2.1", recibido : "" >
+        < n('P2,2) : Extremo | amigos : ("192.168.0.1" | "192.168.1.2"), centro : null, estado : esperando, ip : "192.168.2.2", recibido : "" >
+    ) >
+    < 'P3 : Proceso | datos : (
+        < n('P3,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : inactivo, ip : "192.168.3.1", recibido : "" >
+        < n('P3,2) : Extremo | amigos : ("192.168.2.1" | "192.168.3.1"), centro : null, estado : inactivo, ip : "192.168.3.2", recibido : "" >
+    ) >,
+    'ext.e->inf
+  }
+  {
+    < 'C1 : Canal | destino : 'P1, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C2 : Canal | destino : 'P2, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C3 : Canal | destino : 'P3, estado : ok, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'P0 : Proceso | datos :
+        < n('P0, 1) : Centro | amigos : ("192.168.1.1" | "192.168.2.1"), estado : inactivo, ip : "192.168.0.1", recibido : "", tabla : tvacia >
+    >
+    < 'P1 : Proceso | datos : (
+        info("192.168.1.1", n('P1,1))
+        info("192.168.1.2", n('P1,2))
+        < n('P1,1) : Extremo | amigos : ("192.168.0.1" | "192.168.2.1"), centro : null, estado : esperando, ip : "192.168.1.1", recibido : "" >
+        < n('P1,2) : Extremo | amigos : ("192.168.0.1" | "192.168.2.2"), centro : null, estado : esperando, ip : "192.168.1.2", recibido : "" >
+    ) >
+    < 'P2 : Proceso | datos : (
+        info("192.168.2.1", n('P2,1))
+        info("192.168.2.2", n('P2,2))
+        < n('P2,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : esperando, ip : "192.168.2.1", recibido : "" >
+        < n('P2,2) : Extremo | amigos : ("192.168.0.1" | "192.168.1.2"), centro : null, estado : esperando, ip : "192.168.2.2", recibido : "" >
+    ) >
+    < 'P3 : Proceso | datos : (
+        info("192.168.3.1", n('P3,1))
+        < n('P3,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : esperando, ip : "192.168.3.1", recibido : "" >
+        < n('P3,2) : Extremo | amigos : ("192.168.2.1" | "192.168.3.1"), centro : null, estado : inactivo, ip : "192.168.3.2", recibido : "" >
+    ) >,
+    'can.ed->ext.msj
+  }
+  {
+    < 'C1 : Canal | destino : 'P1, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C2 : Canal | destino : 'P2, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C3 : Canal | destino : 'P3, estado : ok, listaDestino : lvacia, listaOrigen : info("192.168.3.1", n('P3,1)), origen : 'P0 >
+    < 'P0 : Proceso | datos :
+        < n('P0, 1) : Centro | amigos : ("192.168.1.1" | "192.168.2.1"), estado : inactivo, ip : "192.168.0.1", recibido : "", tabla : tvacia >
+    >
+    < 'P1 : Proceso | datos : (
+        info("192.168.1.1", n('P1,1))
+        info("192.168.1.2", n('P1,2))
+        < n('P1,1) : Extremo | amigos : ("192.168.0.1" | "192.168.2.1"), centro : null, estado : esperando, ip : "192.168.1.1", recibido : "" >
+        < n('P1,2) : Extremo | amigos : ("192.168.0.1" | "192.168.2.2"), centro : null, estado : esperando, ip : "192.168.1.2", recibido : "" >
+    ) >
+    < 'P2 : Proceso | datos : (
+        info("192.168.2.1", n('P2,1))
+        info("192.168.2.2", n('P2,2))
+        < n('P2,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : esperando, ip : "192.168.2.1", recibido : "" >
+        < n('P2,2) : Extremo | amigos : ("192.168.0.1" | "192.168.1.2"), centro : null, estado : esperando, ip : "192.168.2.2", recibido : "" >
+    ) >
+    < 'P3 : Proceso | datos : (
+        < n('P3,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : esperando, ip : "192.168.3.1", recibido : "" >
+        < n('P3,2) : Extremo | amigos : ("192.168.2.1" | "192.168.3.1"), centro : null, estado : inactivo, ip : "192.168.3.2", recibido : "" >
+    ) >,
+    'can.ro->msj
+  }
+  {
+    < 'C1 : Canal | destino : 'P1, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C2 : Canal | destino : 'P2, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C3 : Canal | destino : 'P3, estado : ok, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'P0 : Proceso | datos : (
+        info("192.168.3.1", n('P3,1))
+        < n('P0, 1) : Centro | amigos : ("192.168.1.1" | "192.168.2.1"), estado : inactivo, ip : "192.168.0.1", recibido : "", tabla : tvacia >
+    ) >
+    < 'P1 : Proceso | datos : (
+        info("192.168.1.1", n('P1,1))
+        info("192.168.1.2", n('P1,2))
+        < n('P1,1) : Extremo | amigos : ("192.168.0.1" | "192.168.2.1"), centro : null, estado : esperando, ip : "192.168.1.1", recibido : "" >
+        < n('P1,2) : Extremo | amigos : ("192.168.0.1" | "192.168.2.2"), centro : null, estado : esperando, ip : "192.168.1.2", recibido : "" >
+    ) >
+    < 'P2 : Proceso | datos : (
+        info("192.168.2.1", n('P2,1))
+        info("192.168.2.2", n('P2,2))
+        < n('P2,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : esperando, ip : "192.168.2.1", recibido : "" >
+        < n('P2,2) : Extremo | amigos : ("192.168.0.1" | "192.168.1.2"), centro : null, estado : esperando, ip : "192.168.2.2", recibido : "" >
+    ) >
+    < 'P3 : Proceso | datos : (
+        < n('P3,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : esperando, ip : "192.168.3.1", recibido : "" >
+        < n('P3,2) : Extremo | amigos : ("192.168.2.1" | "192.168.3.1"), centro : null, estado : inactivo, ip : "192.168.3.2", recibido : "" >
+    ) >,
+    'can.err
+  }
+  {
+    < 'C1 : Canal | destino : 'P1, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C2 : Canal | destino : 'P2, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C3 : Canal | destino : 'P3, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'P0 : Proceso | datos : (
+        info("192.168.3.1", n('P3,1))
+        < n('P0, 1) : Centro | amigos : ("192.168.1.1" | "192.168.2.1"), estado : inactivo, ip : "192.168.0.1", recibido : "", tabla : tvacia >
+    ) >
+    < 'P1 : Proceso | datos : (
+        info("192.168.1.1", n('P1,1))
+        info("192.168.1.2", n('P1,2))
+        < n('P1,1) : Extremo | amigos : ("192.168.0.1" | "192.168.2.1"), centro : null, estado : esperando, ip : "192.168.1.1", recibido : "" >
+        < n('P1,2) : Extremo | amigos : ("192.168.0.1" | "192.168.2.2"), centro : null, estado : esperando, ip : "192.168.1.2", recibido : "" >
+    ) >
+    < 'P2 : Proceso | datos : (
+        info("192.168.2.1", n('P2,1))
+        info("192.168.2.2", n('P2,2))
+        < n('P2,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : esperando, ip : "192.168.2.1", recibido : "" >
+        < n('P2,2) : Extremo | amigos : ("192.168.0.1" | "192.168.1.2"), centro : null, estado : esperando, ip : "192.168.2.2", recibido : "" >
+    ) >
+    < 'P3 : Proceso | datos : (
+        < n('P3,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : esperando, ip : "192.168.3.1", recibido : "" >
+        < n('P3,2) : Extremo | amigos : ("192.168.2.1" | "192.168.3.1"), centro : null, estado : inactivo, ip : "192.168.3.2", recibido : "" >
+    ) >,
+    'cen.r->inf.e->r-inf@inact
+  }
+  {
+    < 'C1 : Canal | destino : 'P1, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C2 : Canal | destino : 'P2, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C3 : Canal | destino : 'P3, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 > <
+    'P0 : Proceso | datos : (
+        (para n('P3,1)respuesta-info n('P0, 1))
+        < n('P0, 1) : Centro | amigos : ("192.168.1.1" | "192.168.2.1"), estado : activo, ip : "192.168.0.1", recibido : "", tabla : {"192.168.3.1", n('P3,1)} >
+    ) >
+    < 'P1 : Proceso | datos : (
+        info("192.168.1.1", n('P1,1))
+        info("192.168.1.2", n('P1,2))
+        < n('P1,1) : Extremo | amigos : ("192.168.0.1" | "192.168.2.1"), centro : null, estado : esperando, ip : "192.168.1.1", recibido : "" >
+        < n('P1,2) : Extremo | amigos : ("192.168.0.1" | "192.168.2.2"), centro : null, estado : esperando, ip : "192.168.1.2", recibido : "" >
+    ) >
+    < 'P2 : Proceso | datos : (
+        info("192.168.2.1", n('P2,1))
+        info("192.168.2.2", n('P2,2))
+        < n('P2,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : esperando, ip : "192.168.2.1", recibido : "" >
+        < n('P2,2) : Extremo | amigos : ("192.168.0.1" | "192.168.1.2"), centro : null, estado : esperando, ip : "192.168.2.2", recibido : "" >
+    ) >
+    < 'P3 : Proceso | datos : (
+        < n('P3,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : esperando, ip : "192.168.3.1", recibido : "" >
+        < n('P3,2) : Extremo | amigos : ("192.168.2.1" | "192.168.3.1"), centro : null, estado : inactivo, ip : "192.168.3.2", recibido : "" >
+    ) >,
+    'nod.e->msj1
+  }
+  {
+    < 'C1 : Canal | destino : 'P1, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C2 : Canal | destino : 'P2, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C3 : Canal | destino : 'P3, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'P0 : Proceso | datos : (
+        (para n('P3,1)respuesta-info n('P0, 1))
+        (to "192.168.1.1" : "hola")
+        (to "192.168.2.1" : "hola")
+        < n('P0, 1) : Centro | amigos : cvacio, estado : activo, ip : "192.168.0.1", recibido : "", tabla : {"192.168.3.1", n('P3,1)} >
+    ) >
+    < 'P1 : Proceso | datos : (
+        info("192.168.1.1", n('P1,1))
+        info("192.168.1.2", n('P1,2))
+        < n('P1,1) : Extremo | amigos : ("192.168.0.1" | "192.168.2.1"), centro : null, estado : esperando, ip : "192.168.1.1", recibido : "" >
+        < n('P1,2) : Extremo | amigos : ("192.168.0.1" | "192.168.2.2"), centro : null, estado : esperando, ip : "192.168.1.2", recibido : "" >
+    ) >
+    < 'P2 : Proceso | datos : (
+        info("192.168.2.1", n('P2,1))
+        info("192.168.2.2", n('P2,2))
+        < n('P2,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : esperando, ip : "192.168.2.1", recibido : "" >
+        < n('P2,2) : Extremo | amigos : ("192.168.0.1" | "192.168.1.2"), centro : null, estado : esperando, ip : "192.168.2.2", recibido : "" >
+    ) >
+    < 'P3 : Proceso | datos : (
+        < n('P3,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : esperando, ip : "192.168.3.1", recibido : "" >
+        < n('P3,2) : Extremo | amigos : ("192.168.2.1" | "192.168.3.1"), centro : null, estado : inactivo, ip : "192.168.3.2", recibido : "" >
+    ) >,
+    'ext.e->inf
+  },
+  {
+    < 'C1 : Canal | destino : 'P1, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C2 : Canal | destino : 'P2, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'C3 : Canal | destino : 'P3, estado : error, listaDestino : lvacia, listaOrigen : lvacia, origen : 'P0 >
+    < 'P0 : Proceso | datos : (
+        (para n('P3,1)respuesta-info n('P0, 1))
+        (to "192.168.1.1" : "hola")
+        (to "192.168.2.1" : "hola")
+        < n('P0, 1) : Centro | amigos : cvacio, estado : activo, ip : "192.168.0.1", recibido : "", tabla : {"192.168.3.1", n('P3,1)} >
+    ) >
+    < 'P1 : Proceso | datos : (
+        info("192.168.1.1", n('P1,1))
+        info("192.168.1.2", n('P1,2))
+        < n('P1,1) : Extremo | amigos : ("192.168.0.1" | "192.168.2.1"), centro : null, estado : esperando, ip : "192.168.1.1", recibido : "" >
+        < n('P1,2) : Extremo | amigos : ("192.168.0.1" | "192.168.2.2"), centro : null, estado : esperando, ip : "192.168.1.2", recibido : "" >
+    ) >
+    < 'P2 : Proceso | datos : (
+        info("192.168.2.1", n('P2,1))
+        info("192.168.2.2", n('P2,2))
+        < n('P2,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : esperando, ip : "192.168.2.1", recibido : "" >
+        < n('P2,2) : Extremo | amigos : ("192.168.0.1" | "192.168.1.2"), centro : null, estado : esperando, ip : "192.168.2.2", recibido : "" >
+    ) >
+    < 'P3 : Proceso | datos : (
+        info("192.168.3.2", n('P3,2))
+        < n('P3,1) : Extremo | amigos : ("192.168.0.1" | "192.168.1.1"), centro : null, estado : esperando, ip : "192.168.3.1", recibido : "" >
+        < n('P3,2) : Extremo | amigos : ("192.168.2.1" | "192.168.3.1"), centro : null, estado : esperando, ip : "192.168.3.2", recibido : "" >
+    ) >,
+    deadlock
+  })
+
+### Explicación:
+### De forma similar a la anterior tenemos un contra ejemplo en el que se puede generar
+### un mensaje cualquiera, en este caso uno destinado a saludar a un nodo, y que este no
+### desaparezca porque no llegue a poder atravesar el canal necesario al estar este
+### estropeado. Con lo que una vez el camino está obstruido, el mensaje se queda
+### colgando en la configuración, desde la que fue generado, para siempre.
+
+*****************************************************************************************)
+
+--- **************************************************************************************
+--- * Ejercicio 25: Explica qué definiciones y qué reglas deberíamos cambiar para que
+--- * los objetos que reciben un mensaje contesten al objeto que les envió el mensaje.
+--- * En especial, piensa que quieres que los mensajes se contesten pero que no se entre
+--- * en un ciclo de respuestas, es decir, si el objeto o1 manda el mensaje "hola" al
+--- * objeto o2, este lo almacenaría y contestaría "buenas". Una vez o1 recibe este
+--- * mensaje lo almacena y acaba. Además, sería interesante que no dependa del mensaje
+--- * enviado. ¿Qué harías para definir una propiedad que diga “los mensajes recibidos
+--- * son contestados”?
+--- **************************************************************************************
+
+***(**************************************************************************************
+
+Para permitir que el nodo saludado responda, tendríamos que tener lo siguientes mensajes:
+
+    msg to_from_:_ : String String String -> Msg .
+    msg to_from_:_ : Oid String String -> Msg .
+
+Donde el segundo parámetro será una dirección IP, que sería la del nodo que emitiría el
+mensaje de saludo. No borraríamos los mensajes de envío de saludo anteriores porque
+los vamos a necesitar para gestionar la respuesta al saludo, ya que si usamos estos
+nuevos mensajes definidos entraríamos posiblemente en un bucle, con lo que habría
+que definir algún flag para poner fin a las idas y vueltas.
+
+Hemos de añadir las siguientes ecuaciones para permitir que estos nuevos tipos de
+mensajes se canalicen de forma correcta en nuestra especificación:
+
+    var SIP : String .
+    eq esParaCentro(to S from SIP : S') = true .
+    eq esParaExtremo(to O from SIP : S) = true .
+
+Lo siguiente que hay que hacer es modificar la función generaMensajes, porque es
+invocada por la regla "nod.e->msj1" que es la que se usa para gestionar la emisión de
+mensajes. Con lo que la función quedaría tal que:
+
+    op generaMensajes : CjtoString String String -> Configuration .
+    eq generaMensajes(cvacio, SIP, S') = none .
+    eq generaMensajes(S, SIP, S') = (to S from SIP : S') .
+    eq generaMensajes(S | CJ, SIP, S') =
+        (to S from SIP : S') (generaMensajes(CJ, SIP, S')) .
+
+Como la función ahora tiene un nuevo parámetro habría que cambiar la regla así:
+
+    crl[nod.e->msj1] :
+        < OP : Proceso | datos :
+            < O : Nodo | ip     : SIP,
+                         estado : activo,
+                         amigos : CJ >
+            CS >
+        =>
+        < OP : Proceso | datos :
+            < O : Nodo | amigos : cvacio >
+            generaMensajes(CJ, SIP, "hola")
+            CS >
+        if CJ =/= cvacio
+        [print "nod.e->msj1"] .
+
+Entonces una vez llega al centro tenemos que añadir una nueva regla a la que ya
+tenemos llamada "cen.r->msj1.e->msj2", que gestiona el tipo de mensaje antiguo.
+Para no romper con la nomenclatura la vieja la renombraremos, ya que el msj1 se
+está usando ahora para el tipo de mensaje de saludo nuevo:
+
+    rl[cen.r->msj1.e->msj2] :
+        < OP : Proceso | datos :
+            (to S from SIP : S')
+            < O : Centro | tabla  : {S,O'} & T,
+                           estado : activo >
+            CS >
+        =>
+        < OP : Proceso | datos :
+            < O : Centro | >
+            (to O' from SIP : S')
+            CS >
+        [print "cen.r->msj1.e->msj2"] .
+
+    rl[cen.r->msj1b.e->msj2b] :
+        < OP : Proceso | datos :
+            (to S : S')
+            < O : Centro | tabla  : {S,O'} & T,
+                           estado : activo >
+            CS >
+        =>
+        < OP : Proceso | datos :
+            < O : Centro | >
+            (to O' : S')
+            CS >
+        [print "cen.r->msj1b.e->msj2b"] .
+
+Lo siguiente es modificar las funciones que agregan el texto, para primero renombrar
+las viejas para adaptarlas a la nueva nomenclatura y añadir las del nuevo tipo de
+mensaje, donde se emitirá como respuesta un mensaje de vuelta:
+
+    *** El nuevo tipo de mensaje:
+
+    rl[nod.r->msj1] :
+        < OP : Proceso | datos :
+            (to S from SIP : S'')
+            < O : Nodo | ip       : S,
+                         recibido : S',
+                         estado   : activo >
+            CS >
+        =>
+        < OP : Proceso | datos :
+            (to SIP : "buenas")
+            < O : Nodo | recibido : agregarTexto(S', S'') >
+            CS >
+        [print "nod.r->msj1"] .
+
+    rl[nod.r->msj2] :
+        < OP : Proceso | datos :
+            (to O from SIP : S'')
+            < O : Nodo | recibido : S',
+                         estado   : activo >
+            CS >
+        =>
+        < OP : Proceso | datos :
+            (to SIP : "buenas")
+            < O : Nodo | recibido : agregarTexto(S', S'') >
+            CS >
+        [print "nod.r->msj2"] .
+
+    *** El tipo de mensaje viejo:
+
+    rl[nod.r->msj1b] :
+        < OP : Proceso | datos :
+            (to S : S'')
+            < O : Nodo | ip       : S,
+                         recibido : S',
+                         estado   : activo >
+            CS >
+        =>
+        < OP : Proceso | datos :
+            < O : Nodo | recibido : agregarTexto(S', S'') >
+            CS >
+        [print "nod.r->msj1b"] .
+
+    rl[nod.r->msj2b] :
+        < OP : Proceso | datos :
+            (to O : S'')
+            < O : Nodo | recibido : S',
+                         estado   : activo >
+            CS >
+        =>
+        < OP : Proceso | datos :
+            < O : Nodo | recibido : agregarTexto(S', S'') >
+            CS >
+        [print "nod.r->msj2b"] .
+
+De este modo tenemos ampliado nuestro modelo para que los mensajes de saludo
+sean respondidos con un "buenas" o cualquier otra cadena que nos dé la gana. El
+motivo de usar la dirección IP en vez del identificador de objeto es el siguiente,
+los mensajes con la IP viajan hacia el centro siempre, mientras que los que tiene
+un Oid van hacia los extremos. Por ello podría ocurrir que un proceso en P1 mande
+un saludo a otro en P2, si este respondiera con un Oid como dirección de envío,
+el mensaje de respuesta se quedaría en la configuración de P2 para siempre y no
+llegaría al destino.
+
+Esto nos llevaría por último a la sección de las propiedades de la red, donde
+tendríamos que modificar la función "hayMsjParaIP'" para adaptarla a los cambios.
+Solo sería cambiar la ecuación siguiente:
+
+    eq hayMsjParaIP'((to S : S') CS, S) = true .
+
+Por esta otra con el nuevo tipo de mensaje:
+
+    eq hayMsjParaIP'((to S from SIP : S') CS, S) = true .
+
+Entonces, ¿qué haríamos para definir una propiedad que diga "los mensajes recibidos
+son contestados"? Asumiendo que ahora el tipo de mensaje antiguo equivale a ser un
+mensaje de respuesta, pondríamos las siguientes funciones:
+
+    op hayRespParaIP' : Configuration String -> Bool .
+    eq hayRespParaIP'(none, S) = false .
+    eq hayRespParaIP'((to S : S') CS, S) = true .
+    eq hayRespParaIP'(MSG CS, S) = hayRespParaIP'(CS, S) [owise] .
+
+    op hayRespParaIP? : Configuration String -> Bool .
+    eq hayRespParaIP?(CS, S) = hayRespParaIP'(listaPlanaMsjs(CS), S) .
+
+Efectivamente son las mismas funciones que se usaban en "hayMsjParaIP", solo que ahora
+tienen otro nombre. Con lo que la propiedad sería:
+
+    op existeRespPara : String -> Prop [ctor] .
+    eq CFG |= existeRespPara(S) = (hayRespParaIP?(CFG, S) == true) .
+
+Ciertamente estamos asumiendo que el que exista una respuesta implica que ha habido un
+mensaje de saludo previo, de ahí que "los mensajes recibido son contestados". Esto es
+así porque las reglas del modelo definido básicamente actúan generando el mensaje de
+respuesta en un único caso, que es al recibir un saludo. Luego podemos comprobar con
+alguna fórmula si siempre que existe un mensaje de respuesta, ha existido un mensaje
+de saludo previo.
+
+*****************************************************************************************)

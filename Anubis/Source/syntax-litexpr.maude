@@ -1,0 +1,330 @@
+--- **************************************************************************************
+--- * Anubis Programming Language
+--- * Copyright (c) 2014-2015 Gorka Suárez García
+--- *
+--- * Permission is hereby granted, free of charge, to any person obtaining a copy
+--- * of this software and associated documentation files (the "Software"), to deal
+--- * in the Software without restriction, including without limitation the rights
+--- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+--- * copies of the Software, and to permit persons to whom the Software is
+--- * furnished to do so, subject to the following conditions:
+--- *
+--- * The above copyright notice and this permission notice shall be included in
+--- * all copies or substantial portions of the Software.
+--- *
+--- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+--- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+--- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+--- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+--- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+--- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+--- * DEALINGS IN THE SOFTWARE.
+--- **************************************************************************************
+
+--- |************************************************************************************|
+--- | ANUBIS-SYNTAX-LITEXPR: This module contains operations to reduce expressions of    |
+--- | literals to one only literal.                                                      |
+--- |************************************************************************************|
+
+fmod ANUBIS-SYNTAX-LITEXPR is
+    protecting ANUBIS-SYNTAX-EXPRESSION .
+    protecting ANUBIS-UTILITY-CONVERSION .
+
+    *** |================================================================================|
+    *** | Subsorts                                                                       |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // We have literals, all right. But literals are also expressions.
+    --- //--------------------------------------------------------------------------------
+
+    subsort NullLiteral < NullExpression .
+    subsort BoolLiteral < BooleanExpression .
+    subsort CharLiteral < CharacterExpression .
+    subsort StringLiteral < StringExpression ObjectFieldName .
+    subsort IntegerLiteral HexadecimalLiteral < IntegerExpression .
+    subsort RealLiteral < RealExpression .
+
+    *** |================================================================================|
+    *** | Variables                                                                      |
+    *** |================================================================================|
+
+    var BE : BooleanExpression .
+    vars LBL RBL : BoolLiteral .
+    vars LCL RCL : CharLiteral .
+    vars LSL RSL : StringLiteral .
+    vars LIL RIL : IntegerLiteral .
+    vars LHL RHL : HexadecimalLiteral .
+    vars LRL RRL : RealLiteral .
+
+    *** |================================================================================|
+    *** | Equations (Bool)                                                               |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // Relational:
+    --- //--------------------------------------------------------------------------------
+
+    eq 'false < 'true = 'true .
+    eq LBL < RBL = 'false [owise] .
+
+    eq 'true <= 'false = 'false .
+    eq LBL <= RBL = 'true [owise] .
+
+    eq 'true > 'false = 'true .
+    eq LBL > RBL = 'false [owise] .
+
+    eq 'false >= 'true = 'false .
+    eq LBL >= RBL = 'true [owise] .
+
+    eq 'true == 'true = 'true .
+    eq 'false == 'false = 'true .
+    eq LBL == RBL = 'false [owise] .
+
+    eq 'true <> 'false = 'true .
+    eq 'false <> 'true = 'true .
+    eq LBL <> RBL = 'false [owise] .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Logical:
+    --- //--------------------------------------------------------------------------------
+
+    eq not 'true = 'false .
+    eq not 'false = 'true .
+
+    eq 'true and 'true = 'true .
+    eq LBL and RBL = 'false [owise] .
+
+    eq 'false or 'false = 'false .
+    eq LBL or RBL = 'true [owise] .
+
+    eq 'true xor 'false = 'true .
+    eq 'false xor 'true = 'true .
+    eq LBL xor RBL = 'false [owise] .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Logical (simplification):
+    --- //--------------------------------------------------------------------------------
+
+    eq 'false and BE = 'false .
+    eq LBL and BE = BE [owise] .
+
+    eq BE and 'false = 'false .
+    eq BE and RBL = BE [owise] .
+
+    eq 'true or BE = 'true .
+    eq LBL or BE = BE [owise] .
+
+    eq BE or 'true = 'true .
+    eq BE or RBL = BE [owise] .
+
+    *** |================================================================================|
+    *** | Equations (Numbers)                                                            |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // Arithmetic (Integer):
+    --- //--------------------------------------------------------------------------------
+
+    eq LIL ++ = toLiteral(toInt(LIL) + 1) .
+    eq LIL -- = toLiteral(toInt(LIL) - 1) .
+
+    eq ++ RIL = toLiteral(toInt(RIL) + 1) .
+    eq -- RIL = toLiteral(toInt(RIL) - 1) .
+    eq + RIL = RIL .
+    eq - RIL = toLiteral(- toInt(RIL)) .
+
+    eq LIL * RIL = toLiteral(toInt(LIL) * toInt(RIL)) .
+    eq LIL / RIL = toLiteral(toInt(LIL) / toInt(RIL)) .
+    eq LIL % RIL = toLiteral(toInt(LIL) rem toInt(RIL)) .
+    eq LIL + RIL = toLiteral(toInt(LIL) + toInt(RIL)) .
+    eq LIL - RIL = toLiteral(toInt(LIL) - toInt(RIL)) .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Relational (Integer):
+    --- //--------------------------------------------------------------------------------
+
+    eq LIL < RIL = toLiteral(toInt(LIL) < toInt(RIL)) .
+    eq LIL <= RIL = toLiteral(toInt(LIL) <= toInt(RIL)) .
+    eq LIL > RIL = toLiteral(toInt(LIL) > toInt(RIL)) .
+    eq LIL >= RIL = toLiteral(toInt(LIL) >= toInt(RIL)) .
+
+    eq LIL == RIL = toLiteral(toInt(LIL) == toInt(RIL)) .
+    eq LIL <> RIL = toLiteral(toInt(LIL) =/= toInt(RIL)) .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Bitwise (Integer):
+    --- //--------------------------------------------------------------------------------
+
+    eq ~ RIL = toLiteral(~ toInt(RIL)) .
+    eq LIL << RIL = toLiteral(toInt(LIL) << toInt(RIL)) .
+    eq LIL >> RIL = toLiteral(toInt(LIL) >> toInt(RIL)) .
+    eq LIL & RIL = toLiteral(toInt(LIL) & toInt(RIL)) .
+    eq LIL ^ RIL = toLiteral((toInt(LIL) & (~ toInt(RIL))) | ((~ toInt(LIL)) & toInt(RIL))) .
+    eq LIL | RIL = toLiteral(toInt(LIL) | toInt(RIL)) .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Arithmetic (Hexadecimal):
+    --- //--------------------------------------------------------------------------------
+
+    eq LHL ++ = toLiteral(toInt(LHL) + 1) .
+    eq LHL -- = toLiteral(toInt(LHL) - 1) .
+
+    eq ++ RHL = toLiteral(toInt(RHL) + 1) .
+    eq -- RHL = toLiteral(toInt(RHL) - 1) .
+    eq + RHL = RHL .
+    eq - RHL = toLiteral(- toInt(RHL)) .
+
+    eq LHL * RHL = toLiteral(toInt(LHL) * toInt(RHL)) .
+    eq LHL / RHL = toLiteral(toInt(LHL) / toInt(RHL)) .
+    eq LHL % RHL = toLiteral(toInt(LHL) rem toInt(RHL)) .
+    eq LHL + RHL = toLiteral(toInt(LHL) + toInt(RHL)) .
+    eq LHL - RHL = toLiteral(toInt(LHL) - toInt(RHL)) .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Relational (Hexadecimal):
+    --- //--------------------------------------------------------------------------------
+
+    eq LHL < RHL = toLiteral(toInt(LHL) < toInt(RHL)) .
+    eq LHL <= RHL = toLiteral(toInt(LHL) <= toInt(RHL)) .
+    eq LHL > RHL = toLiteral(toInt(LHL) > toInt(RHL)) .
+    eq LHL >= RHL = toLiteral(toInt(LHL) >= toInt(RHL)) .
+
+    eq LHL == RHL = toLiteral(toInt(LHL) == toInt(RHL)) .
+    eq LHL <> RHL = toLiteral(toInt(LHL) =/= toInt(RHL)) .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Bitwise (Hexadecimal):
+    --- //--------------------------------------------------------------------------------
+
+    eq ~ RHL = toLiteral(~ toInt(RHL)) .
+    eq LHL << RHL = toLiteral(toInt(LHL) << toInt(RHL)) .
+    eq LHL >> RHL = toLiteral(toInt(LHL) >> toInt(RHL)) .
+    eq LHL & RHL = toLiteral(toInt(LHL) & toInt(RHL)) .
+    eq LHL ^ RHL = toLiteral((toInt(LHL) & (~ toInt(RHL))) | ((~ toInt(LHL)) & toInt(RHL))) .
+    eq LHL | RHL = toLiteral(toInt(LHL) | toInt(RHL)) .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Arithmetic (Real):
+    --- //--------------------------------------------------------------------------------
+
+    eq LRL ++ = toLiteral(toFloat(LRL) + 1.0) .
+    eq LRL -- = toLiteral(toFloat(LRL) - 1.0) .
+
+    eq ++ RRL = toLiteral(toFloat(RRL) + 1.0) .
+    eq -- RRL = toLiteral(toFloat(RRL) - 1.0) .
+    eq + RRL = RRL .
+    eq - RRL = toLiteral(- toFloat(RRL)) .
+
+    eq LRL * RRL = toLiteral(toFloat(LRL) * toFloat(RRL)) .
+    eq LRL / RRL = toLiteral(toFloat(LRL) / toFloat(RRL)) .
+    eq LRL % RRL = toLiteral(toFloat(LRL) rem toFloat(RRL)) .
+    eq LRL + RRL = toLiteral(toFloat(LRL) + toFloat(RRL)) .
+    eq LRL - RRL = toLiteral(toFloat(LRL) - toFloat(RRL)) .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Relational (Real):
+    --- //--------------------------------------------------------------------------------
+
+    eq LRL < RRL = toLiteral(toFloat(LRL) < toFloat(RRL)) .
+    eq LRL <= RRL = toLiteral(toFloat(LRL) <= toFloat(RRL)) .
+    eq LRL > RRL = toLiteral(toFloat(LRL) > toFloat(RRL)) .
+    eq LRL >= RRL = toLiteral(toFloat(LRL) >= toFloat(RRL)) .
+
+    eq LRL == RRL = toLiteral(toFloat(LRL) == toFloat(RRL)) .
+    eq LRL <> RRL = toLiteral(toFloat(LRL) =/= toFloat(RRL)) .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Arithmetic (Mixed):
+    --- //--------------------------------------------------------------------------------
+
+    eq LRL * RIL = toLiteral(toFloat(LRL) * toFloat(RIL)) .
+    eq LRL / RIL = toLiteral(toFloat(LRL) / toFloat(RIL)) .
+    eq LRL % RIL = toLiteral(toFloat(LRL) rem toFloat(RIL)) .
+    eq LRL + RIL = toLiteral(toFloat(LRL) + toFloat(RIL)) .
+    eq LRL - RIL = toLiteral(toFloat(LRL) - toFloat(RIL)) .
+
+    eq LIL * RRL = toLiteral(toFloat(LIL) * toFloat(RRL)) .
+    eq LIL / RRL = toLiteral(toFloat(LIL) / toFloat(RRL)) .
+    eq LIL % RRL = toLiteral(toFloat(LIL) rem toFloat(RRL)) .
+    eq LIL + RRL = toLiteral(toFloat(LIL) + toFloat(RRL)) .
+    eq LIL - RRL = toLiteral(toFloat(LIL) - toFloat(RRL)) .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Relational (Mixed):
+    --- //--------------------------------------------------------------------------------
+
+    eq LRL < RIL = toLiteral(toFloat(LRL) < toFloat(RIL)) .
+    eq LRL <= RIL = toLiteral(toFloat(LRL) <= toFloat(RIL)) .
+    eq LRL > RIL = toLiteral(toFloat(LRL) > toFloat(RIL)) .
+    eq LRL >= RIL = toLiteral(toFloat(LRL) >= toFloat(RIL)) .
+
+    eq LRL == RIL = toLiteral(toFloat(LRL) == toFloat(RIL)) .
+    eq LRL <> RIL = toLiteral(toFloat(LRL) =/= toFloat(RIL)) .
+
+    eq LIL < RRL = toLiteral(toFloat(LIL) < toFloat(RRL)) .
+    eq LIL <= RRL = toLiteral(toFloat(LIL) <= toFloat(RRL)) .
+    eq LIL > RRL = toLiteral(toFloat(LIL) > toFloat(RRL)) .
+    eq LIL >= RRL = toLiteral(toFloat(LIL) >= toFloat(RRL)) .
+
+    eq LIL == RRL = toLiteral(toFloat(LIL) == toFloat(RRL)) .
+    eq LIL <> RRL = toLiteral(toFloat(LIL) =/= toFloat(RRL)) .
+
+    *** |================================================================================|
+    *** | Equations (Character)                                                          |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // Relational:
+    --- //--------------------------------------------------------------------------------
+
+    eq LCL < RCL = toLiteral(toInt(LCL) < toInt(RCL)) .
+    eq LCL <= RCL = toLiteral(toInt(LCL) <= toInt(RCL)) .
+    eq LCL > RCL = toLiteral(toInt(LCL) > toInt(RCL)) .
+    eq LCL >= RCL = toLiteral(toInt(LCL) >= toInt(RCL)) .
+
+    eq LCL == RCL = toLiteral(toInt(LCL) == toInt(RCL)) .
+    eq LCL <> RCL = toLiteral(toInt(LCL) =/= toInt(RCL)) .
+
+    *** |================================================================================|
+    *** | Equations (String)                                                             |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // List:
+    --- //--------------------------------------------------------------------------------
+
+    eq LCL :: RSL = toLiteral(toString(LCL) + toString(RSL)) .
+    eq LSL $ RSL = toLiteral(toString(LSL) + toString(RSL)) .
+    eq LCL $ RSL = toLiteral(toString(LCL) + toString(RSL)) .
+    eq LSL $ RCL = toLiteral(toString(LSL) + toString(RCL)) .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Relational:
+    --- //--------------------------------------------------------------------------------
+
+    eq LSL < RSL = toLiteral(toString(LSL) < toString(RSL)) .
+    eq LSL <= RSL = toLiteral(toString(LSL) <= toString(RSL)) .
+    eq LSL > RSL = toLiteral(toString(LSL) > toString(RSL)) .
+    eq LSL >= RSL = toLiteral(toString(LSL) >= toString(RSL)) .
+
+    eq LSL == RSL = toLiteral(toString(LSL) == toString(RSL)) .
+    eq LSL <> RSL = toLiteral(toString(LSL) =/= toString(RSL)) .
+
+    eq LSL < RCL = toLiteral(toString(LSL) < toString(RCL)) .
+    eq LSL <= RCL = toLiteral(toString(LSL) <= toString(RCL)) .
+    eq LSL > RCL = toLiteral(toString(LSL) > toString(RCL)) .
+    eq LSL >= RCL = toLiteral(toString(LSL) >= toString(RCL)) .
+
+    eq LSL == RCL = toLiteral(toString(LSL) == toString(RCL)) .
+    eq LSL <> RCL = toLiteral(toString(LSL) =/= toString(RCL)) .
+
+    eq LCL < RSL = toLiteral(toString(LCL) < toString(RSL)) .
+    eq LCL <= RSL = toLiteral(toString(LCL) <= toString(RSL)) .
+    eq LCL > RSL = toLiteral(toString(LCL) > toString(RSL)) .
+    eq LCL >= RSL = toLiteral(toString(LCL) >= toString(RSL)) .
+
+    eq LCL == RSL = toLiteral(toString(LCL) == toString(RSL)) .
+    eq LCL <> RSL = toLiteral(toString(LCL) =/= toString(RSL)) .
+
+endfm

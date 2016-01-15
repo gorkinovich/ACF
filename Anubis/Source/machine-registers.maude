@@ -1,0 +1,138 @@
+--- **************************************************************************************
+--- * Anubis Programming Language
+--- * Copyright (c) 2014-2015 Gorka Suárez García
+--- *
+--- * Permission is hereby granted, free of charge, to any person obtaining a copy
+--- * of this software and associated documentation files (the "Software"), to deal
+--- * in the Software without restriction, including without limitation the rights
+--- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+--- * copies of the Software, and to permit persons to whom the Software is
+--- * furnished to do so, subject to the following conditions:
+--- *
+--- * The above copyright notice and this permission notice shall be included in
+--- * all copies or substantial portions of the Software.
+--- *
+--- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+--- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+--- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+--- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+--- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+--- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+--- * DEALINGS IN THE SOFTWARE.
+--- **************************************************************************************
+
+--- |************************************************************************************|
+--- | ANUBIS-MACHINE-REGISTERS: This module represents registers inside the machine.     |
+--- |************************************************************************************|
+
+*** TODO: Complete this file...
+
+fmod ANUBIS-MACHINE-REGISTERS is
+    protecting ANUBIS-MACHINE-VALUE .
+    protecting ANUBIS-PARSER-PRGTYPE .
+
+    *** |================================================================================|
+    *** | Sorts                                                                          |
+    *** |================================================================================|
+
+    sort Registers Register ContextMode .
+
+    *** |================================================================================|
+    *** | Subsorts                                                                       |
+    *** |================================================================================|
+
+    subsort Register < Registers .
+
+    *** |================================================================================|
+    *** | Operators                                                                      |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // Data
+    --- //--------------------------------------------------------------------------------
+
+    ops CntModeStart CntModeBuild CntModeNormal : -> ContextMode [ctor] .
+
+    op rgnil : -> Register [ctor] .
+
+    op $A : Value -> Register [ctor] .
+    op $B : Value -> Register [ctor] .
+    op $C : Value -> Register [ctor] .
+
+    op $PTR : Value -> Register [ctor] .
+    op $RET : Value -> Register [ctor] .
+
+    op $PRMLST : ParametersList -> Register [ctor] .
+    op $PRMVLS : Value -> Register [ctor] .
+
+    op $CLASS : String -> Register [ctor] .
+    op $SELF : Nat -> Register [ctor] .
+    op $MODE : ContextMode -> Register [ctor] .
+
+    op __ : Registers Registers -> Registers [ctor assoc comm id: rgnil] .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Functions
+    --- //--------------------------------------------------------------------------------
+
+    op registersCreate : -> Registers .
+
+    op _`[Ptr`] : Registers -> Value .
+    op _`[Ret`] : Registers -> Value .
+
+    op _`[PrmLst`] : Registers -> ParametersList .
+    op _`[PrmVls`] : Registers -> Value .
+
+    op _`[Class`] : Registers -> String .
+    op _`[Self`] : Registers -> Nat .
+    op _`[Mode`] : Registers -> ContextMode .
+
+    op _`[Ptr:_`] : Registers Value -> Registers .
+    op _`[Ret:_`] : Registers Value -> Registers .
+
+    op _`[PrmLst:_`] : Registers ParametersList -> Registers .
+    op _`[PrmVls:_`] : Registers Value -> Registers .
+
+    op _`[Class:_`] : Registers String -> Registers .
+    op _`[Self:_`] : Registers Nat -> Registers .
+    op _`[Mode:_`] : Registers ContextMode -> Registers .
+
+    *** |================================================================================|
+    *** | Variables                                                                      |
+    *** |================================================================================|
+
+    var REGS : Registers .
+
+    vars RVAL RVAL' : Value .
+    vars NAME NAME' : String .
+    vars OPTR OPTR' : Nat .
+    vars CTMD CTMD' : ContextMode .
+    vars PRLS PRLS' : ParametersList .
+
+    *** |================================================================================|
+    *** | Equations                                                                      |
+    *** |================================================================================|
+
+    *** TODO: Check this code...
+    eq registersCreate = $A(void) $B(void) $C(void) $PTR(void) $RET(void)
+                         $PRMLST(painil) $PRMVLS(void) $CLASS("") $SELF(0)
+                         $MODE(CntModeNormal) .
+    *** ...
+
+    eq ($PTR(RVAL) REGS) [Ptr] = RVAL .
+    eq ($RET(RVAL) REGS) [Ret] = RVAL .
+    eq ($PRMLST(PRLS) REGS) [PrmLst] = PRLS .
+    eq ($PRMVLS(RVAL) REGS) [PrmVls] = RVAL .
+    eq ($CLASS(NAME) REGS) [Class] = NAME .
+    eq ($SELF(OPTR) REGS) [Self] = OPTR .
+    eq ($MODE(CTMD) REGS) [Mode] = CTMD .
+
+    eq ($PTR(RVAL) REGS) [Ptr: RVAL'] = $PTR(RVAL') REGS .
+    eq ($RET(RVAL) REGS) [Ret: RVAL'] = $RET(RVAL') REGS .
+    eq ($PRMLST(PRLS) REGS) [PrmLst: PRLS'] = $PRMLST(PRLS') REGS .
+    eq ($PRMVLS(RVAL) REGS) [PrmVls: RVAL'] = $PRMVLS(RVAL') REGS .
+    eq ($CLASS(NAME) REGS) [Class: NAME'] = $CLASS(NAME') REGS .
+    eq ($SELF(OPTR) REGS) [Self: OPTR'] = $SELF(OPTR') REGS .
+    eq ($MODE(CTMD) REGS) [Mode: CTMD'] = $MODE(CTMD') REGS  .
+
+endfm

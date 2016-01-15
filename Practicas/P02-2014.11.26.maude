@@ -1,0 +1,442 @@
+---(
+Gorka Suárez García, ACF
+
+Ejercicio 1:
+    Define un módulo para listas de cadenas. En este apartado basta con que
+    definas el tipo y las constructoras.
+
+Ejercicio 2:
+    Importa el módulo para listas en el módulo ABB y define una función
+    inorden que, dado un término de tipo ABB, devuelve una lista de
+    cadenas correspondiente al inorden de las claves. Añade las funciones
+    sobre listas necesarias en el módulo del apartado anterior.
+
+Ejercicio 3
+    Usa el comando red para probar que la función inorden funciona.
+
+Ejercicio 4
+    Modifica la especificación para que los compradores puedan adquirir
+    los productos de uno en uno. De esta manera, aunque la tienda no tenga
+    todos los productos que necesita el cliente puede venderle tantos como
+    tenga en stock.
+
+Ejercicio 5
+    Haz la misma modificación para que la tienda pueda adquirir productos
+    de los representantes de uno en uno.
+
+Ejercicio 6
+    Define nuevas constructoras para Comprador y Representante (no es
+    necesario que borres las antiguas) para que indiquen si quieren comprar
+    libros o películas. Define también las nuevas reglas necesarias para
+    estas constructoras.
+
+Ejercicio 7
+    Define una tienda de ejemplo y usa los comandos rew, frew, search y
+    show path para probar el funcionamiento del módulo.
+)
+
+--- ************************************************************
+
+*** Ejercicio 1:
+fmod STR-LST is
+    pr STRING .
+    sort StringList .
+    subsort String < StringList .
+    op slnil : -> StringList [ctor] .
+    op __ : StringList StringList -> StringList [ctor assoc id: slnil] .
+endfm
+
+--- ************************************************************
+
+fmod ABB is
+    pr STRING .
+
+    sort Par .
+
+    op <_,_> : Nat Nat -> Par [ctor] .
+
+    sort ABB .
+
+    op vacio : -> ABB [ctor] .
+    op _[_,_]_ : ABB String Par ABB -> ABB [ctor] .
+
+    vars C C' V V' : Nat .
+    vars P P' : Par .
+    vars S S' : String .
+    vars A A' HI HD : ABB .
+
+    op primero : Par -> Nat .
+    eq primero(< C, V >) = C .
+
+    op segundo : Par -> Nat .
+    eq segundo(< C, V >) = V .
+
+    *** La primera pareja es la que tenemos y la segunda la que queremos introducir.
+    *** Sumamos la cantidad y actualizamos el precio.
+    op insertarNuevo : Par Par -> Par .
+    eq insertarNuevo(< C, V >, < C', V' >) = < C + C', V' > .
+
+    op quitar : Par Nat ~> Par .
+    ceq quitar(< C, V >, C') = < sd(C, C'), V >
+        if C >= C' .
+
+    op insertar : ABB String Par -> ABB .
+    eq insertar(vacio, S, P) = vacio [S, P] vacio .
+    ceq insertar(HI [S, P] HD, S', P') = HI [S, insertarNuevo(P, P')] HD
+        if S == S' .
+    ceq insertar(HI [S, P] HD, S', P') = HI [S, P] insertar(HD, S', P')
+        if S < S' .
+    ceq insertar(HI [S, P] HD, S', P') = insertar(HI, S', P') [S, P] HD
+        if S > S' .
+
+    op cantidad : ABB String -> Nat .
+    eq cantidad(vacio, S) = 0 .
+    ceq cantidad(HI [S, P] HD, S') = primero(P)
+        if S == S' .
+    ceq cantidad(HI [S, P] HD, S') = cantidad(HD, S')
+        if S < S' .
+    ceq cantidad(HI [S, P] HD, S') = cantidad(HI, S')
+        if S > S' .
+
+    op precio : ABB String ~> Nat .
+    ceq precio(HI [S, P] HD, S') = segundo(P)
+        if S == S' .
+    ceq precio(HI [S, P] HD, S') = precio(HD, S')
+        if S < S' .
+    ceq precio(HI [S, P] HD, S') = precio(HI, S')
+        if S > S' .
+
+    op vender : ABB String Nat -> ABB .
+    eq vender(vacio, S, C) = vacio .
+    ceq vender(HI [S, P] HD, S', C) = HI [S, quitar(P, C)] HD
+        if S == S' .
+    ceq vender(HI [S, P] HD, S', C) = HI [S, P] vender(HD, S', C)
+        if S < S' .
+    ceq vender(HI [S, P] HD, S', C) = vender(HI, S', C) [S, P] HD
+        if S > S' .
+
+    *** Ejercicio 2:
+    pr STR-LST .
+
+    op inorden : ABB -> StringList .
+    eq inorden(vacio) = slnil .
+    eq inorden(HI [S, P] HD) = inorden(HI) S inorden(HD) .
+
+    ---(
+    op venderUno : ABB String -> ABB .
+    eq venderUno(A, S) =
+        if cantidad(A, S) > 0 then
+            vender(A, S, 1)
+        else
+            A
+        fi .
+    )
+endfm
+
+--- ************************************************************
+
+fmod GENTE is
+    pr STRING .
+
+    sorts Gente Comprador Representante .
+    subsort Comprador Representante < Gente .
+
+    op nadie : -> Gente [ctor] .
+    op __ : Gente Gente -> Gente [ctor assoc comm id: nadie] .
+
+    op comprador : String Nat -> Comprador [ctor] .
+    op representante : String Nat Nat -> Representante [ctor] .
+
+    *** Ejercicio 6:
+    sort TProd .
+    op libro : -> TProd [ctor] .
+    op pelicula : -> TProd [ctor] .
+    op comprador : TProd String Nat -> Comprador [ctor] .
+    op representante : TProd String Nat Nat -> Representante [ctor] .
+endfm
+
+--- ************************************************************
+
+mod TIENDA is
+    pr GENTE .
+    pr ABB .
+
+    sort Tienda .
+
+    *** Catalogo de peliculas, de libros y dinero en caja.
+    op [_|_,_,_] : Gente ABB ABB Nat -> Tienda [ctor] .
+
+    var  G : Gente .
+    var  S : String .
+    vars N D D' V : Nat .
+    vars P P' L L' : ABB .
+
+    crl [venta-peli] :
+        [ comprador(S, N) G | P, L, D ]
+     => [ G | vender(P, S, N), L, D + (precio(P, S) * N) ]
+     if cantidad(P, S) >= N .
+
+    ***(
+    *** Usando condiciones de encaje de patrones.
+        crl [venta-peli] :
+            [ comprador(S, N) G | P, L, D ]
+         => [ G | P', L, D' ]
+         if cantidad(P, S) >= N /\
+            P' := vender(P, S, N) /\
+            D' := D + (precio(P, S) * N) .
+    )
+
+    crl [venta-libro] :
+        [ comprador(S, N) G | P, L, D ]
+     => [ G | P, vender(L, S, N), D + (precio(L, S) * N) ]
+     if cantidad(L, S) >= N .
+
+    ***(
+    *** Usando condiciones de encaje de patrones.
+        crl [venta-libro] :
+            [ comprador(S, N) G | P, L, D ]
+         => [ G | P, L', D' ]
+         if cantidad(P, S) >= N /\
+            L' := vender(L, S, N) /\
+            D' := D + (precio(L, S) * N) .
+    )
+
+    crl [nuevas-pelis] :
+        [ representante(S, N, V) G | P, L, D ]
+     => [ G | insertar(P, S, < N, V * 2 >), L, sd(D, N * V) ]
+     if N * V <= D .
+
+    crl [nuevos-libros] :
+        [ representante(S, N, V) G | P, L, D ]
+     => [ G | P, insertar(L, S, < N, V * 2 >), sd(D, N * V) ]
+     if N * V <= D .
+
+    *** Ejercicio 4:
+    rl [venta-una-peli] : [ comprador(S, N) G | P, L, D ]
+        => if cantidad(P, S) > 0 then
+            if N > 1 then
+                [ comprador(S, sd(N, 1)) G |
+                  vender(P, S, 1), L, D + precio(P, S) ]
+            else
+                [ G | vender(P, S, 1), L, D + precio(P, S) ]
+            fi
+        else
+            [ G | P, L, D ]
+        fi .
+
+    rl [venta-un-libro] : [ comprador(S, N) G | P, L, D ]
+        => if cantidad(L, S) > 0 then
+            if N > 1 then
+                [ comprador(S, sd(N, 1)) G |
+                  P, vender(L, S, 1), D + precio(P, S) ]
+            else
+                [ G | P, vender(L, S, 1), D + precio(P, S) ]
+            fi
+        else
+            [ G | P, L, D ]
+        fi .
+
+    *** Ejercicio 5:
+    rl [nuevas-una-peli] : [ representante(S, N, V) G | P, L, D ]
+        => if V <= D then
+            if N > 1 then
+                [ representante(S, sd(N, 1), V) G |
+                  insertar(P, S, < 1, V * 2 >), L, sd(D, V) ]
+            else
+                [ G | insertar(P, S, < 1, V * 2 >), L, sd(D, V) ]
+            fi
+        else
+            [ G | P, L, D ]
+        fi .
+
+    rl [nuevos-un-libro] : [ representante(S, N, V) G | P, L, D ]
+        => if V <= D then
+            if N > 1 then
+                [ representante(S, sd(N, 1), V) G |
+                  P, insertar(L, S, < 1, V * 2 >), sd(D, V) ]
+            else
+                [ G | P, insertar(L, S, < 1, V * 2 >), sd(D, V) ]
+            fi
+        else
+            [ G | P, L, D ]
+        fi .
+
+    *** Ejercicio 6:
+    var TP : TProd .
+
+    crl [venta-peli-tp] :
+        [ comprador(TP, S, N) G | P, L, D ]
+     => [ G | vender(P, S, N), L, D + (precio(P, S) * N) ]
+     if cantidad(P, S) >= N /\ TP = pelicula .
+
+    crl [venta-libro-tp] :
+        [ comprador(TP, S, N) G | P, L, D ]
+     => [ G | P, vender(L, S, N), D + (precio(L, S) * N) ]
+     if cantidad(L, S) >= N /\ TP = libro .
+
+    crl [nuevas-pelis-tp] :
+        [ representante(TP, S, N, V) G | P, L, D ]
+     => [ G | insertar(P, S, < N, V * 2 >), L, sd(D, N * V) ]
+     if N * V <= D /\ TP = pelicula .
+
+    crl [nuevos-libros-tp] :
+        [ representante(TP, S, N, V) G | P, L, D ]
+     => [ G | P, insertar(L, S, < N, V * 2 >), sd(D, N * V) ]
+     if N * V <= D /\ TP = libro .
+
+    crl [venta-una-peli-tp] : [ comprador(TP, S, N) G | P, L, D ]
+        => if cantidad(P, S) > 0 then
+            if N > 1 then
+                [ comprador(TP, S, sd(N, 1)) G |
+                  vender(P, S, 1), L, D + precio(P, S) ]
+            else
+                [ G | vender(P, S, 1), L, D + precio(P, S) ]
+            fi
+        else
+            [ G | P, L, D ]
+        fi
+        if TP = pelicula .
+
+    crl [venta-un-libro-tp] : [ comprador(TP, S, N) G | P, L, D ]
+        => if cantidad(L, S) > 0 then
+            if N > 1 then
+                [ comprador(TP, S, sd(N, 1)) G |
+                  P, vender(L, S, 1), D + precio(P, S) ]
+            else
+                [ G | P, vender(L, S, 1), D + precio(P, S) ]
+            fi
+        else
+            [ G | P, L, D ]
+        fi
+        if TP = libro .
+
+    crl [nuevas-una-peli-tp] : [ representante(TP, S, N, V) G | P, L, D ]
+        => if V <= D then
+            if N > 1 then
+                [ representante(TP, S, sd(N, 1), V) G |
+                  insertar(P, S, < 1, V * 2 >), L, sd(D, V) ]
+            else
+                [ G | insertar(P, S, < 1, V * 2 >), L, sd(D, V) ]
+            fi
+        else
+            [ G | P, L, D ]
+        fi
+        if TP = pelicula .
+
+    crl [nuevos-un-libro-tp] : [ representante(TP, S, N, V) G | P, L, D ]
+        => if V <= D then
+            if N > 1 then
+                [ representante(TP, S, sd(N, 1), V) G |
+                  P, insertar(L, S, < 1, V * 2 >), sd(D, V) ]
+            else
+                [ G | P, insertar(L, S, < 1, V * 2 >), sd(D, V) ]
+            fi
+        else
+            [ G | P, L, D ]
+        fi
+        if TP = libro .
+endm
+
+--- ************************************************************
+
+mod EJEMPLO is
+    pr TIENDA .
+
+    ops c1 c2 c3 : -> Comprador .
+    eq c1 = comprador("a", 3) .
+    eq c2 = comprador("b", 2) .
+    eq c3 = comprador("c", 2) .
+
+    ops r1 r2 r3 : -> Representante .
+    eq r1 = representante("a", 1, 10) .
+    eq r2 = representante("b", 2, 20) .
+    eq r3 = representante("c", 3, 30) .
+
+    op tienda : -> Tienda .
+    eq tienda = [ c1 c2 c3 r1 r2 r3 | vacio, vacio, 100] .
+
+    *** Ejercicio 3:
+    op test1 : -> ABB .
+    eq test1 =
+        insertar(
+            insertar(
+                insertar(
+                    insertar(
+                        insertar(
+                            insertar(
+                                vacio,
+                                "C++",
+                                < 1, 32 >
+                            ),
+                            "Assembler",
+                            < 1, 1 >
+                        ),
+                        "Java",
+                        < 1, 2 >
+                    ),
+                    "C#",
+                    < 1, 16 >
+                ),
+                "Haskell",
+                < 1, 4 >
+            ),
+            "Python",
+            < 1, 8 >
+        ) .
+
+    op test2 : -> StringList .
+    eq test2 = inorden(test1) .
+
+    *** Ejercicio 7:
+    ops c1' c2' c3' : -> Comprador .
+    eq c1' = comprador(pelicula, "a", 3) .
+    eq c2' = comprador(pelicula, "b", 2) .
+    eq c3' = comprador(libro, "c", 2) .
+
+    ops r1' r2' r3' : -> Representante .
+    eq r1' = representante(pelicula, "a", 1, 10) .
+    eq r2' = representante(libro, "b", 2, 20) .
+    eq r3' = representante(libro, "c", 3, 30) .
+
+    op tienda' : -> Tienda .
+    eq tienda' = [ c1' c2' c3' r1' r2' r3' | vacio, vacio, 100] .
+endm
+
+--- ************************************************************
+
+---(
+Ejemplos:
+
+rew tienda .
+
+frew tienda .
+
+search tienda =>* [ G:Gente | P:ABB, L:ABB, D:Nat] s.t. D:Nat > 100 .
+
+show path 7 .
+
+)
+
+---(
+Ejercicio 3:
+
+red inorden(insertar(insertar(insertar(insertar(insertar(insertar(
+vacio, "C++", < 1, 32 >), "Assembler", < 1, 1 >), "Java", < 1, 2 >),
+"C#", < 1, 16 >), "Haskell", < 1, 4 >), "Python", < 1, 8 >)) .
+
+red test2 .
+
+)
+
+---(
+Ejercicio 7:
+
+rew tienda' .
+
+frew tienda' .
+
+search tienda' =>* [ G:Gente | P:ABB, L:ABB, D:Nat] s.t. D:Nat > 100 .
+
+show path 7 .
+
+)

@@ -1,0 +1,80 @@
+--- **************************************************************************************
+--- * Anubis Programming Language
+--- * Copyright (c) 2014-2015 Gorka Suárez García
+--- *
+--- * Permission is hereby granted, free of charge, to any person obtaining a copy
+--- * of this software and associated documentation files (the "Software"), to deal
+--- * in the Software without restriction, including without limitation the rights
+--- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+--- * copies of the Software, and to permit persons to whom the Software is
+--- * furnished to do so, subject to the following conditions:
+--- *
+--- * The above copyright notice and this permission notice shall be included in
+--- * all copies or substantial portions of the Software.
+--- *
+--- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+--- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+--- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+--- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+--- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+--- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+--- * DEALINGS IN THE SOFTWARE.
+--- **************************************************************************************
+
+--- |************************************************************************************|
+--- | ANUBIS-SYNTAX-LITERAL: This module represents the literals in the language.        |
+--- |************************************************************************************|
+
+fmod ANUBIS-SYNTAX-LITERAL is
+    protecting ANUBIS-UTILITY-LITERAL .
+
+    *** |================================================================================|
+    *** | Sorts                                                                          |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // This language has literal symbols that can be used in expressions.
+    --- //--------------------------------------------------------------------------------
+
+    sorts Literal NullLiteral BoolLiteral CharLiteral StringLiteral NumericLiteral
+          IntegerLiteral RealLiteral HexadecimalLiteral .
+
+    *** |================================================================================|
+    *** | Subsorts                                                                       |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // So we're going to use the quoted identifiers to represent the literals in the
+    --- // language. We would like to try to use Maude types to build expressions in a
+    --- // source code fragment, but we can't just simply tell to Maude that Bool, Int,
+    --- // Float and String are literals, because all these types already have their own
+    --- // operators and collide between them. Anyway, Maude doesn't have hexadecimal
+    --- // literals implemented in the predefined data modules, so we'll use this system
+    --- // to have literals represented as a type in the language and have total control
+    --- // of the literals inside the language.
+    --- //--------------------------------------------------------------------------------
+
+    subsort NullLiteral BoolLiteral CharLiteral StringLiteral NumericLiteral < Literal < Qid  .
+    subsort IntegerLiteral RealLiteral HexadecimalLiteral < NumericLiteral .
+
+    subsort StringLiteralContainer < StringLiteral .
+
+    *** |================================================================================|
+    *** | Variables                                                                      |
+    *** |================================================================================|
+
+    vars ID : Qid .
+
+    *** |================================================================================|
+    *** | Memberships                                                                    |
+    *** |================================================================================|
+
+    cmb ID : NullLiteral if isValidNull(ID) .
+    cmb ID : BoolLiteral if isValidBool(ID) .
+    cmb ID : CharLiteral if isValidChar(ID) .
+    cmb ID : StringLiteral if isValidString(ID) .
+    cmb ID : IntegerLiteral if isValidInteger(ID) .
+    cmb ID : RealLiteral if isValidReal(ID) .
+    cmb ID : HexadecimalLiteral if isValidHexadecimal(ID) .
+
+endfm

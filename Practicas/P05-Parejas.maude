@@ -1,0 +1,1065 @@
+--- **************************************************************************************
+--- * ACF, Práctica 5: Sábado noche
+--- * Paloma Galván Calleja, Gorka Suárez García
+--- **************************************************************************************
+
+---(======================================================================================
+
+                |===================================================|
+                | AVISO: Es importante cargar los módulos de maude  |
+                |        para este ejercicio en el siguiente orden. |
+                |===================================================|
+
+load model-checker.maude
+load full-maude.maude
+load P05-Parejas.maude
+
+=========================================================================================)
+
+--- **************************************************************************************
+--- * Especifica el siguiente problema en Maude. Define los tipos y estructuras de datos
+--- * que creas necesarias, elige bien si algo debe escribirse como una ecuación o como
+--- * una regla y procura dividir el problema en módulos.
+--- **************************************************************************************
+
+*** |------------------------------------------------------------------------------------|
+*** | Esta vista se usa para poder usar como parámetro el tipo Object en cualquier       |
+*** | módulo parametrizable que exista en Maude o necesitemos crear nosotros.            |
+*** |------------------------------------------------------------------------------------|
+(view Object from TRIV to CONFIGURATION is
+    sort Elt to Object .
+endv)
+
+*** |------------------------------------------------------------------------------------|
+*** | Este módulo contiene un tipo parametrizable para formar listas de valores de forma |
+*** | sencilla como se ha visto en clase a lo largo del curso, o en el manual de Maude.  |
+*** |------------------------------------------------------------------------------------|
+(fmod LISTA{V :: TRIV} is
+    sort Lista{V} .
+    subsort V$Elt < Lista{V} .
+    op lvacia : -> Lista{V} [ctor] .
+    op _;_ : Lista{V} Lista{V} -> Lista{V} [ctor assoc id: lvacia] .
+endfm)
+
+--- **************************************************************************************
+--- ************************************ Ejercicio 1 *************************************
+--- **************************************************************************************
+--- * Vamos a especificar un típico sábado en una ciudad española, que tiene que
+--- * cumplir los siguientes requisitos:
+--- *
+--- * + Tenemos personas, que deben tener como mínimo nombre, edad y una bolsa de
+--- *   plástico con cierta cantidad de alcohol, de refresco y de hielos.
+--- * + La “noche” se divide en tres partes: la gente que está haciendo botellón (para
+--- *   desgracia de los vecinos), la gente que está esperando en una cola para entrar
+--- *   a un local de moda y la gente que ya está dentro del local.
+--- * + En la zona del botellón la gente no tiene orden. Además, la gente puede beber
+--- *   siempre que sea posible encontrar a alguien (es posible pero no necesario que
+--- *   sea él mismo) que tenga lo que quiere beber:
+--- *   + Refresco, que consume una unidad de refresco de la bolsa de alguien.
+--- *     Además, puede consumir o no una unidad de hielo.
+--- *   + Cubata, que consume una unidad de refresco, una unidad de alcohol y
+--- *     una unidad de hielo.
+--- *   + En ambos casos, cada unidad puede provenir de la misma bolsa o de
+--- *     bolsas distintas.
+--- * + Cuando alguien haciendo botellón decide que quiere entrar se pone en la cola.
+--- *   Pero resulta que hay dos tipos de personas: los vip y los demás. Por tanto,
+--- *   los vips que se ponen a la cola se ponen exactamente detrás del último vip (o
+--- *   en el primer lugar de la cola si no hay ninguno), mientras que los demás se
+--- *   ponen al final.
+--- * + El local tiene un aforo. Mientras no esté lleno, la primera persona de la cola
+--- *   puede pasar si es mayor de 18 años y ha bebido menos de 3 copas. Si es menor o
+--- *   ha bebido demasiado se le echa de la cola y vuelve a la gente que hace botellón.
+--- * + Al entrar en el local la gente tira su bolsa de plástico con todo su contenido
+--- *   a los contenedores de reciclaje adecuados, por lo que se “transforman” en
+--- *   personas generadas con un nuevo constructor que no incluye esta bolsa.
+--- * + El local tiene una cierta cantidad de bebidas con alcohol y de refrescos.
+--- *   Dentro del local no es necesario preocuparse por el hielo.
+--- * + La gente dentro del local puede decidir beber algo. Puede pedir un refresco si
+--- *   hay al menos 1 en la cantidad de refrescos, o pedir una copa (que consume 1 de
+--- *   alcohol y 1 de refresco) si ha tomado menos de 4 copas.
+--- * + Cuando el manager (una persona llamada "Dabi") se encuentra a alguien que lleva
+--- *   4 copas le echa (la persona a la que se echa desaparece de todo el sistema).
+--- * + La gente dentro del local también puede decidir irse en cualquier momento,
+--- *   desapareciendo del sistema.
+--- * + El manager no toma copas y no se va nunca. Su única preocupación es echar a
+--- *   la gente.
+--- **************************************************************************************
+
+(omod PERSONA is
+
+    pr QID .
+    pr INT .
+    pr STRING .
+
+    *** |********************************************************************************|
+    *** |************************************ Tipos *************************************|
+    *** |********************************************************************************|
+
+    subsort Qid < Oid .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Aquí tenemos el tipo "Estado" que ejerce de tipo enumerado, para indicar la    |
+    *** | situación actual de la noche.                                                  |
+    *** |--------------------------------------------------------------------------------|
+
+    sort EstadoNoche .
+    ops botellon esperando dentro : -> EstadoNoche [ctor] .
+
+    *** |********************************************************************************|
+    *** |************************************ Clases ************************************|
+    *** |********************************************************************************|
+
+    *** |--------------------------------- Tipo "Bolsa" ---------------------------------|
+
+    sort Bolsa .
+    op `[_`,_`,_`] : Int Int Int -> Bolsa [ctor] .
+    --- [alcohol, refresco, hielos]
+
+    *** |-------------------------------- Clase "Cubata" --------------------------------|
+
+    class Cubata | alcohol : Int, refresco : Int, hielo : Int .
+
+    *** |------------------------------- Clase "Persona" --------------------------------|
+
+    class Persona | nombre : String, edad : Int, noche : EstadoNoche,
+                    vip : Bool, bolsa : Bolsa, copas : Int .
+
+    *** |------------------------------- Clase "Persona" --------------------------------|
+
+    class PersonaReformada | nombre : String, edad : Int, noche : EstadoNoche,
+                             copas : Int .
+
+    *** |********************************************************************************|
+    *** |********************************** Variables ***********************************|
+    *** |********************************************************************************|
+
+    var S : String .
+    var BOL : Bolsa .
+    var VIP : Bool .
+    var OBJ : Object .
+    var ES : EstadoNoche .
+    var CS : Configuration .
+
+    vars I I' : Int .
+    vars AL AL' AL'' : Int .
+    vars RE RE' RE'' : Int .
+    vars HI HI' HI'' : Int .
+    vars CID PID PID' PID'' : Oid .
+
+    *** |********************************************************************************|
+    *** |********************************** Funciones ***********************************|
+    *** |********************************************************************************|
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Para facilitar la creación de objetos tendremos una serie de funciones que     |
+    *** | hacen de algo parecido a los constructores de toda la vida.                    |
+    *** |--------------------------------------------------------------------------------|
+
+    op esVip : Object -> Bool .
+    eq esVip(< PID : Persona | nombre : S,
+                                 edad : I,
+                                noche : ES,
+                                  vip : VIP,
+                                bolsa : BOL,
+                                copas : I' >) = VIP .
+
+    op dameCopas : Object -> Int .
+    eq dameCopas(< PID : Persona | nombre : S,
+                                     edad : I,
+                                    noche : ES,
+                                      vip : VIP,
+                                    bolsa : BOL,
+                                    copas : I' >) = I' .
+    eq dameCopas(< PID : PersonaReformada | nombre : S,
+                                              edad : I,
+                                             noche : dentro,
+                                             copas : I' >) = I' .
+    eq dameCopas(OBJ) = 0 [owise] .
+
+    op dameNombre : Object -> String .
+    eq dameNombre(< PID : Persona | nombre : S,
+                                      edad : I,
+                                     noche : ES,
+                                       vip : VIP,
+                                     bolsa : BOL,
+                                     copas : I' >) = S .
+    eq dameNombre(< PID : PersonaReformada | nombre : S,
+                                               edad : I,
+                                              noche : dentro,
+                                              copas : I' >) = S .
+    eq dameNombre(OBJ) = "" [owise] .
+
+    op nuevoCubata : Oid Int Int Int -> Object .
+    eq nuevoCubata(CID, AL, RE, HI) = < CID : Cubata | alcohol : AL,
+                                                      refresco : RE,
+                                                         hielo : HI > .
+
+    op nuevaPersona : Oid String Int Bool Bolsa -> Object .
+    eq nuevaPersona(PID, S, I, VIP, BOL) = < PID : Persona | nombre : S,
+                                                               edad : I,
+                                                              noche : botellon,
+                                                                vip : VIP,
+                                                              bolsa : BOL,
+                                                              copas : 0 > .
+
+    op nuevaPersona : String Int Bool Bolsa -> Object .
+    eq nuevaPersona(S, I, VIP, BOL) = nuevaPersona(qid(S), S, I, VIP, BOL) .
+
+    op nuevaPersona : Oid String Int Bool Bolsa Int -> Object .
+    eq nuevaPersona(PID, S, I, VIP, BOL, I') = < PID : Persona | nombre : S,
+                                                                   edad : I,
+                                                                  noche : botellon,
+                                                                    vip : VIP,
+                                                                  bolsa : BOL,
+                                                                  copas : I' > .
+
+    op nuevaPersona : String Int Bool Bolsa Int -> Object .
+    eq nuevaPersona(S, I, VIP, BOL, I') = nuevaPersona(qid(S), S, I, VIP, BOL, I') .
+
+    op nuevaPersonaReformada : Oid String Int Int -> Object .
+    eq nuevaPersonaReformada(PID, S, I, I') = < PID : PersonaReformada | nombre : S,
+                                                                           edad : I,
+                                                                          noche : dentro,
+                                                                          copas : I' > .
+
+    op nuevaPersonaReformada : String Int Int -> Object .
+    eq nuevaPersonaReformada(S, I, I') = nuevaPersonaReformada(qid(S), S, I, I') .
+
+    *** |********************************************************************************|
+    *** |************************************ Reglas ************************************|
+    *** |********************************************************************************|
+
+    *** |--------------------------------------------------------------------------------|
+    *** | La primera regla a definir es como se echa un refresco.                        |
+    *** |--------------------------------------------------------------------------------|
+
+    crl[refresco.1] :
+        < PID : Persona | noche : botellon,
+                          bolsa : [AL, RE, HI] >
+        =>
+        < PID : Persona | bolsa : [AL, RE - 1, HI] >
+        if RE >= 1
+        [print "refresco.1"] .
+
+    crl[refresco.1h] :
+        < PID : Persona | noche : botellon,
+                          bolsa : [AL, RE, HI] >
+        =>
+        < PID : Persona | bolsa : [AL, RE - 1, HI - 1] >
+        if RE >= 1 /\ HI >= 1
+        [print "refresco.1h"] .
+
+    crl[refresco.2h] :
+        < PID  : Persona | noche : botellon,
+                           bolsa : [AL, RE, HI] >
+        < PID' : Persona | noche : botellon,
+                           bolsa : [AL', RE', HI'] >
+        =>
+        < PID  : Persona | bolsa : [AL, RE -  1, HI] >
+        < PID' : Persona | bolsa : [AL', RE', HI' - 1] >
+        if RE >= 1 /\ HI' >= 1
+        [print "refresco.2h"] .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | La segunda regla a definir es como se echa un cubata desde la bolsa de alguien.|
+    *** |--------------------------------------------------------------------------------|
+
+    crl[cubata.1] :
+        < PID : Persona | noche : botellon,
+                          bolsa : [AL, RE, HI] >
+        =>
+        < PID : Persona | bolsa : [AL - 1, RE - 1, HI - 1] >
+        nuevoCubata('C, 1, 1, 1)
+        if AL >= 1 /\ RE >= 1 /\ HI >= 1
+        [print "cubata.1"] .
+
+    crl[cubata.2a] :
+        < PID  : Persona | noche : botellon,
+                           bolsa : [AL, RE, HI] >
+        < PID' : Persona | noche : botellon,
+                           bolsa : [AL', RE', HI'] >
+        =>
+        < PID  : Persona | bolsa : [AL - 1, RE - 1, HI] >
+        < PID' : Persona | bolsa : [AL', RE', HI' - 1] >
+        nuevoCubata('C, 1, 1, 1)
+        if AL >= 1 /\ RE >= 1 /\ HI' >= 1
+        [print "cubata.2a"] .
+
+    crl[cubata.2b] :
+        < PID  : Persona | noche : botellon,
+                           bolsa : [AL, RE, HI] >
+        < PID' : Persona | noche : botellon,
+                           bolsa : [AL', RE', HI'] >
+        =>
+        < PID  : Persona | bolsa : [AL - 1, RE, HI - 1] >
+        < PID' : Persona | bolsa : [AL', RE' - 1, HI'] >
+        nuevoCubata('C, 1, 1, 1)
+        if AL >= 1 /\ RE' >= 1 /\ HI >= 1
+        [print "cubata.2b"] .
+
+    crl[cubata.2c] :
+        < PID  : Persona | noche : botellon,
+                           bolsa : [AL, RE, HI] >
+        < PID' : Persona | noche : botellon,
+                           bolsa : [AL', RE', HI'] >
+        =>
+        < PID  : Persona | bolsa : [AL, RE - 1, HI - 1] >
+        < PID' : Persona | bolsa : [AL' - 1, RE', HI'] >
+        nuevoCubata('C, 1, 1, 1)
+        if AL' >= 1 /\ RE >= 1 /\ HI >= 1
+        [print "cubata.2c"] .
+
+    crl[cubata.2d] :
+        < PID  : Persona | noche : botellon,
+                           bolsa : [AL, RE, HI] >
+        < PID' : Persona | noche : botellon,
+                           bolsa : [AL', RE', HI'] >
+        =>
+        < PID  : Persona | bolsa : [AL - 1, RE, HI] >
+        < PID' : Persona | bolsa : [AL', RE' - 1, HI' - 1] >
+        nuevoCubata('C, 1, 1, 1)
+        if AL >= 1 /\ RE' >= 1 /\ HI' >= 1
+        [print "cubata.2d"] .
+
+    crl[cubata.2e] :
+        < PID  : Persona | noche : botellon,
+                           bolsa : [AL, RE, HI] >
+        < PID' : Persona | noche : botellon,
+                           bolsa : [AL', RE', HI'] >
+        =>
+        < PID  : Persona | bolsa : [AL, RE - 1, HI] >
+        < PID' : Persona | bolsa : [AL' - 1, RE', HI' - 1] >
+        nuevoCubata('C, 1, 1, 1)
+        if AL' >= 1 /\ RE >= 1 /\ HI' >= 1
+        [print "cubata.2e"] .
+
+    crl[cubata.2f] :
+        < PID  : Persona | noche : botellon,
+                           bolsa : [AL, RE, HI] >
+        < PID' : Persona | noche : botellon,
+                           bolsa : [AL', RE', HI'] >
+        =>
+        < PID  : Persona | bolsa : [AL, RE, HI - 1] >
+        < PID' : Persona | bolsa : [AL' - 1, RE' - 1, HI'] >
+        nuevoCubata('C, 1, 1, 1)
+        if AL' >= 1 /\ RE' >= 1 /\ HI >= 1
+        [print "cubata.2f"] .
+
+    crl[cubata.3] :
+        < PID   : Persona | noche : botellon,
+                            bolsa : [AL, RE, HI] >
+        < PID'  : Persona | noche : botellon,
+                            bolsa : [AL', RE', HI'] >
+        < PID'' : Persona | noche : botellon,
+                            bolsa : [AL'', RE'', HI''] >
+        =>
+        < PID   : Persona | bolsa : [AL - 1, RE, HI] >
+        < PID'  : Persona | bolsa : [AL', RE' - 1, HI'] >
+        < PID'' : Persona | bolsa : [AL'', RE'', HI'' - 1] >
+        nuevoCubata('C, 1, 1, 1)
+        if AL >= 1 /\ RE' >= 1 /\ HI'' >= 1
+        [print "cubata.3"] .
+
+    rl[bebetelo] :
+        < PID : Persona | noche : botellon,
+                          copas : I >
+        < CID : Cubata | >
+        =>
+        < PID : Persona | copas : I + 1 >
+        [print "bebetelo"] .
+
+endom)
+
+(omod TIPICO-SABADO is
+
+    pr PERSONA .
+    pr LISTA{Object} .
+
+    *** |********************************************************************************|
+    *** |************************************ Tipos *************************************|
+    *** |********************************************************************************|
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Creamos el tipo encargado de almacenar colas de personas.                      |
+    *** |--------------------------------------------------------------------------------|
+
+    sort ListaCola .
+    subsort Lista{Object} < ListaCola .
+
+    *** |********************************************************************************|
+    *** |************************************ Clases ************************************|
+    *** |********************************************************************************|
+
+    *** |------------------------------- Clase "Botellon" -------------------------------|
+
+    class Botellon | personas : Configuration .
+
+    *** |--------------------------------- Clase "Cola" ---------------------------------|
+
+    class Cola | personas : ListaCola .
+
+    *** |-------------------------------- Clase "Local" ---------------------------------|
+
+    class Local | aforo : Int, gente : Int, alcohol : Int, refresco : Int,
+                  personas : Configuration .
+
+    *** |------------------------------- Clase "Manager" --------------------------------|
+
+    class Manager | nombre : String, edad : Int .
+
+    *** |********************************************************************************|
+    *** |********************************** Variables ***********************************|
+    *** |********************************************************************************|
+
+    var S : String .
+    var BOL : Bolsa .
+    var CO : ListaCola .
+    var ES : EstadoNoche .
+    var CS : Configuration .
+
+    vars OBJ OBJ' : Object .
+    vars I I' I'' I''' AL RE : Int .
+    vars PID LID BID CID DABI : Oid .
+
+    *** |********************************************************************************|
+    *** |********************************** Funciones ***********************************|
+    *** |********************************************************************************|
+
+    op nuevoLocal : Oid Int Int Int Int Configuration -> Object .
+    eq nuevoLocal(LID, I, I', AL, RE, CS) = < LID : Local | aforo : I,
+                                                            gente : I',
+                                                          alcohol : AL,
+                                                         refresco : RE,
+                                                         personas : CS > .
+
+    op nuevoManager : Oid String Int -> Object .
+    eq nuevoManager(DABI, S, I) = < DABI : Manager | nombre : S,
+                                                       edad : I > .
+
+    op nuevoManager : String Int -> Object .
+    eq nuevoManager(S, I) = nuevoManager(qid(S), S, I) .
+
+    op meterColaVip : ListaCola Object -> ListaCola .
+    eq meterColaVip(lvacia, OBJ') = OBJ' .
+    ceq meterColaVip(OBJ ; CO, OBJ') = OBJ ; meterColaVip(CO, OBJ')
+        if esVip(OBJ) .
+    eq meterColaVip(OBJ ; CO , OBJ') = OBJ' ; OBJ ; CO [owise] .
+
+    op meterCola : ListaCola Object -> ListaCola .
+    eq meterCola(lvacia, OBJ) = OBJ .
+    eq meterCola(CO, OBJ) =
+        if esVip(OBJ) then
+            meterColaVip(CO, OBJ)
+        else
+            CO ; OBJ
+        fi [owise] .
+
+    *** |********************************************************************************|
+    *** |************************************ Reglas ************************************|
+    *** |********************************************************************************|
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Regla para ponerse en la cola del local de moda.                               |
+    *** |--------------------------------------------------------------------------------|
+
+    rl[bot->esp] :
+        < BID : Botellon | personas :
+            < PID : Persona | noche : botellon >
+            CS >
+        < CID : Cola | personas : CO >
+        =>
+        < BID : Botellon | personas : CS >
+        < CID : Cola | personas : meterCola(CO, < PID : Persona | noche : esperando >) >
+        [print "bot->esp"] .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Regla para entrar en el local de moda.                                         |
+    *** |--------------------------------------------------------------------------------|
+
+    crl[esp->dentro] :
+        < CID : Cola | personas :
+            < PID : Persona | nombre : S,
+                                edad : I'',
+                               noche : esperando,
+                               copas : I''' > ; CO >
+        < LID : Local | aforo : I,
+                        gente : I',
+                     personas : CS >
+        =>
+        < CID : Cola  | personas : CO >
+        < LID : Local | aforo : I,
+                        gente : I' + 1,
+                     personas : CS nuevaPersonaReformada(PID, S, I'', I''') >
+        if (I > I' and I'' >= 18 and I''' < 3)
+        [print "esp->dentro"] .
+
+    crl[esp->bot] :
+        < CID : Cola | personas :
+            < PID : Persona | nombre : S,
+                                edad : I'',
+                               noche : esperando,
+                               copas : I''' > ; CO >
+        < BID : Botellon | personas : CS >
+        =>
+        < CID : Cola     | personas : CO >
+        < BID : Botellon | personas : CS < PID : Persona | noche : botellon > >
+        if (I'' < 18 or I''' >= 3)
+        [print "esp->bot"] .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Regla para pedir refrescos en el local de moda.                                |
+    *** |--------------------------------------------------------------------------------|
+
+    crl[pedirref] :
+        < LID : Local | refresco : RE >
+        =>
+        < LID : Local | refresco : RE - 1 >
+        if RE >= 1
+        [print "pedirref"] .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Regla para pedir copas en el local de moda.                                    |
+    *** |--------------------------------------------------------------------------------|
+
+    crl[pedircop] :
+        < LID : Local | alcohol : AL,
+                       refresco : RE >
+        < PID : Persona | copas : I >
+        =>
+        < LID : Local | alcohol : AL - 1,
+                       refresco : RE - 1 >
+        < PID : Persona | copas : I + 1 >
+        if AL >= 1 /\ RE >= 1 /\ I < 4
+        [print "pedircop"] .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Regla si te pilla 'Dabi'.                                                      |
+    *** |--------------------------------------------------------------------------------|
+
+    crl[encontronazo] :
+        < LID : Local | gente : I,
+                     personas : < DABI : Manager | >
+                                < PID : PersonaReformada | copas : I >
+                                CS >
+        =>
+        < LID : Local | gente : I - 1,
+                     personas : < DABI : Manager | >
+                                CS >
+        if I >= 4
+        [print "encontronazo"] .
+
+    *** |--------------------------------------------------------------------------------|
+    *** | Irse del local de moda.                                                        |
+    *** |--------------------------------------------------------------------------------|
+
+    rl[irse] :
+        < LID : Local | gente : I,
+                     personas : < PID : PersonaReformada | >
+                                CS >
+        =>
+        < LID : Local | gente : I - 1,
+                     personas : CS >
+        [print "irse"] .
+
+endom)
+
+--- **************************************************************************************
+--- ************************************ Ejercicio 2 *************************************
+--- **************************************************************************************
+--- * Escribe un término de ejemplo con 6 personas esperando, donde:
+--- *
+--- * + 2 personas son vip.
+--- * + 1 persona (no vip) es menor de edad.
+--- * + Entre todos tienen 4 unidades de hielo, 5 unidades de alcohol y 5 unidades
+--- *   de refresco.
+--- *
+--- * Dentro del local, que tiene un aforo para 5 personas (*1), están el manager (que
+--- * tiene 23 años, el resto de atributos puedes inventarlos), 6 unidades de alcohol
+--- * y otras 5 unidades de refresco. Puedes inventarte los nombres pero procura que
+--- * no se repitan.
+--- *
+--- * (Nota 1: Es decir, para el manager y 4 personas más.)
+--- **************************************************************************************
+
+(mod EJEMPLO is
+    pr TIPICO-SABADO .
+
+    op initial : -> Configuration .
+    eq initial =
+        < 'BID : Botellon | personas :
+            nuevaPersona("Paloma",   26, true,  [1, 1, 1])
+            nuevaPersona("Elena",    23, false, [0, 1, 1])
+            nuevaPersona("Gorka",    33, true,  [2, 0, 1])
+            nuevaPersona("Manuel",   17, false, [1, 0, 0])
+            nuevaPersona("Cristian", 22, false, [1, 1, 1])
+            nuevaPersona("Adrian",   22, false, [0, 2, 0]) >
+        < 'CID : Cola  | personas : lvacia >
+        < 'LID : Local | aforo : 5,
+                         gente : 1,
+                       alcohol : 6,
+                      refresco : 5,
+                      personas : nuevoManager("Dabi", 23) > .
+
+    op initial3 : -> Configuration .
+    eq initial3 =
+        < 'BID : Botellon | personas :
+            nuevaPersona("Paloma",   26, true,  [0, 0, 0])
+            nuevaPersona("Elena",    23, false, [0, 0, 0])
+            nuevaPersona("Gorka",    33, true,  [0, 0, 1])
+            nuevaPersona("Manuel",   17, false, [1, 0, 0])
+            nuevaPersona("Cristian", 22, false, [0, 0, 0])
+            nuevaPersona("Adrian",   22, false, [0, 0, 0]) >
+        < 'CID : Cola  | personas : lvacia >
+        < 'LID : Local | aforo : 5,
+                         gente : 1,
+                       alcohol : 6,
+                      refresco : 5,
+                      personas : nuevoManager("Dabi", 23) > .
+
+    op initialZ : -> Configuration .
+    eq initialZ =
+        < 'BID : Botellon | personas :
+            nuevaPersona("Paloma", 26, true,  [2, 0, 2])
+            nuevaPersona("Elena",  23, false, [0, 2, 2])
+            nuevaPersona("Gorka",  33, true,  [3, 3, 0])
+            nuevaPersona("Jorge",  17, true,  [0, 0, 0])
+            nuevaPersona("Jordi",  20, true,  [0, 0, 0])
+            nuevaPersona("George", 28, true,  [0, 0, 0]) >
+        < 'CID : Cola | personas :
+            nuevaPersona("Maria", 26, false, [2, 0, 2], 1) ;
+            nuevaPersona("Irene", 26, false, [2, 0, 2], 3) ;
+            nuevaPersona("Pedro", 26, false, [2, 2, 2], 0) >
+        < 'LID : Local | aforo : 5,
+                         gente : 2,
+                       alcohol : 6,
+                      refresco : 5,
+                      personas : nuevaPersonaReformada('P9, "Adri", 26, 4)
+                                 nuevoManager("Dabi", 23) > .
+
+endm)
+
+--- **************************************************************************************
+--- ************************************ Ejercicio 3 *************************************
+--- **************************************************************************************
+--- * Define, usando lo que hayas definido en el ejercicio 1, propiedades para comprobar:
+--- *
+--- * + Si se ha acabado el alcohol.
+--- * + Si se han acabado los refrescos.
+--- * + Si alguien (identificado por su nombre) está en la cola.
+--- * + Si alguien (identificado por su nombre) está en el local.
+--- * + Si el número de personas en el interior del local es menor de un cierto número
+--- *   dado como argumento.
+--- * + Si una persona ha bebido demasiado (3 o más copas fuera del local o 4 o más
+--- *   dentro).
+--- * + Si queda hielo en la zona de botellón.
+--- * + Si quedan refrescos en la zona de botellón.
+--- * + Si queda alcohol en la zona de botellón.
+--- **************************************************************************************
+
+(mod TIPICO-SABADO-PROPS is
+    pr TIPICO-SABADO .
+    pr SATISFACTION .
+    pr EJEMPLO .
+
+    *** |********************************************************************************|
+    *** |************************************ Tipos *************************************|
+    *** |********************************************************************************|
+
+    subsort Configuration < State .
+
+    *** |********************************************************************************|
+    *** |********************************** Variables ***********************************|
+    *** |********************************************************************************|
+
+    var VIP : Bool .
+    var BOL : Bolsa .
+    var OBJ : Object .
+    var CO : ListaCola .
+    var ES : EstadoNoche .
+
+    vars S S' : String .
+    vars I I' I'' I''' AL RE HI : Int .
+    vars PID LID BID CID DABI : Oid .
+    vars CS CFG : Configuration .
+
+    *** |********************************************************************************|
+    *** |********************************** Funciones ***********************************|
+    *** |********************************************************************************|
+
+    op hayAlcoholLocal? : Configuration -> Bool .
+    ceq hayAlcoholLocal?(< LID : Local | aforo : I,
+                                         gente : I',
+                                       alcohol : AL,
+                                      refresco : RE,
+                                      personas : CFG > CS) = true
+                                      if AL > 0 .
+    eq hayAlcoholLocal?(CS) = false [owise] .
+
+    op hayRefrescoLocal? : Configuration -> Bool .
+    ceq hayRefrescoLocal?(< LID : Local | aforo : I,
+                                          gente : I',
+                                        alcohol : AL,
+                                       refresco : RE,
+                                       personas : CFG > CS) = true
+                                       if RE > 0 .
+    eq hayRefrescoLocal?(CS) = false [owise] .
+
+    op hayAlcoholBotellon? : Configuration -> Bool .
+    ceq hayAlcoholBotellon?(< PID : Persona | nombre : S,
+                                                edad : I,
+                                               noche : ES,
+                                                 vip : VIP,
+                                               bolsa : [AL, RE, HI],
+                                               copas : I' > CS) = true
+                                               if AL > 0 .
+    eq hayAlcoholBotellon?(< BID : Botellon | personas : CFG > CS) =
+        hayAlcoholBotellon?(CFG) or hayAlcoholBotellon?(CS) .
+    eq hayAlcoholBotellon?(CS) = false [owise] .
+
+    op hayRefrescoBotellon? : Configuration -> Bool .
+    ceq hayRefrescoBotellon?(< PID : Persona | nombre : S,
+                                                 edad : I,
+                                                noche : ES,
+                                                  vip : VIP,
+                                                bolsa : [AL, RE, HI],
+                                                copas : I' > CS) = true
+                                                if  RE > 0 .
+    eq hayRefrescoBotellon?(< BID : Botellon | personas : CFG > CS) =
+        hayRefrescoBotellon?(CFG) or hayRefrescoBotellon?(CS) .
+    eq hayRefrescoBotellon?(CS) = false [owise] .
+
+    op hayHieloBotellon? : Configuration -> Bool .
+    ceq hayHieloBotellon?(< PID : Persona | nombre : S,
+                                              edad : I,
+                                             noche : ES,
+                                               vip : VIP,
+                                             bolsa : [AL, RE, HI],
+                                             copas : I' > CS) = true
+                                             if  HI > 0 .
+    eq hayHieloBotellon?(< BID : Botellon | personas : CFG > CS) =
+        hayHieloBotellon?(CFG) or hayHieloBotellon?(CS) .
+    eq hayHieloBotellon?(CS) = false [owise] .
+
+    op hayAlcohol? : Configuration -> Bool .
+    eq hayAlcohol?(CS) = hayAlcoholLocal?(CS) or hayAlcoholBotellon?(CS) .
+
+    op hayRefresco? : Configuration -> Bool .
+    eq hayRefresco?(CS) = hayRefrescoLocal?(CS) or hayRefrescoBotellon?(CS) .
+
+    op alcoholAcabado? : Configuration -> Bool .
+    eq alcoholAcabado?(CS) = not hayAlcohol?(CS) .
+
+    op refrescoAcabado? : Configuration -> Bool .
+    eq refrescoAcabado?(CS) = not hayRefresco?(CS) .
+
+    op enCola? : ListaCola String -> Bool .
+    eq enCola?(lvacia, S) = false .
+    ceq enCola?(OBJ ; CO, S) = true
+        if S' := dameNombre(OBJ) /\ S == S' .
+    eq enCola?(OBJ ; CO, S) = enCola?(CO, S) [owise] .
+
+    op enCola? : Configuration String -> Bool .
+    eq enCola?(< CID : Cola | personas : CO > CS, S) = enCola?(CO, S) .
+    eq enCola?(CFG, S) = false [owise] .
+
+    op enLocal? : Configuration String -> Bool .
+    eq enLocal?(< PID : PersonaReformada | nombre : S,
+                                             edad : I,
+                                            noche : ES,
+                                            copas : I' > CS, S) = true .
+    eq enLocal?(< PID : Manager | nombre : S,
+                                    edad : I > CS, S) = true .
+    eq enLocal?(< LID : Local | aforo : I,
+                                gente : I',
+                              alcohol : AL,
+                             refresco : RE,
+                             personas : CFG > CS, S) = enLocal?(CFG, S) or enLocal?(CS, S) .
+    eq enLocal?(CFG, S) = false [owise] .
+    
+    op menosGenteQue? : Configuration Int -> Bool .
+    ceq menosGenteQue?(< LID : Local | aforo : I',
+                                       gente : I'',
+                                     alcohol : AL,
+                                    refresco : RE,
+                                    personas : CS > CFG, I) = true
+                                    if I'' < I .
+    eq menosGenteQue?(CFG, I) = false [owise] .
+
+    op null : -> Object [ctor] .
+    op encuentraPersona : ListaCola String -> Object .
+    eq encuentraPersona(lvacia, S) = null .
+    ceq encuentraPersona(OBJ ; CO, S) = OBJ
+        if S' := dameNombre(OBJ) /\ S == S' .
+    eq encuentraPersona(OBJ ; CO, S) = encuentraPersona(CO, S) [owise] .
+
+    op encuentraPersona : Configuration String -> Object .
+    eq encuentraPersona(none, S) = null .
+    ceq encuentraPersona(< LID : Local | aforo : I,
+                                         gente : I',
+                                       alcohol : AL,
+                                      refresco : RE,
+                                      personas : CFG > CS, S) =
+        if OBJ == null then
+            encuentraPersona(CS, S)
+        else
+            OBJ
+        fi
+        if OBJ := encuentraPersona(CFG, S) .
+    ceq encuentraPersona(< BID : Botellon | personas : CFG > CS, S) =
+        if OBJ == null then
+            encuentraPersona(CS, S)
+        else
+            OBJ
+        fi
+        if OBJ := encuentraPersona(CFG, S) .
+    ceq encuentraPersona(< CID : Cola | personas : CO > CS, S) =
+        if OBJ == null then
+            encuentraPersona(CS, S)
+        else
+            OBJ
+        fi
+        if OBJ := encuentraPersona(CO, S) .
+    eq encuentraPersona(OBJ CS, S) =
+        if dameNombre(OBJ) == S then
+            OBJ
+        else
+            encuentraPersona(CS, S)
+        fi [owise] .
+        
+    op bebidoDemasiado? : Object -> Bool .
+    eq bebidoDemasiado?(< PID : Persona | nombre : S,
+                                            edad : I,
+                                           noche : ES,
+                                             vip : VIP,
+                                           bolsa : BOL,
+                                           copas : I' >) = I' >= 3 .
+    eq bebidoDemasiado?(< PID : PersonaReformada | nombre : S,
+                                                     edad : I,
+                                                    noche : dentro,
+                                                    copas : I' >) = I' >= 4 .
+    eq bebidoDemasiado?(OBJ) = false [owise] .
+
+    op bebidoDemasiado? : Configuration String -> Bool .
+    eq bebidoDemasiado?(CFG, S) = bebidoDemasiado?(encuentraPersona(CFG, S)) .
+
+    *** |********************************************************************************|
+    *** |********************************* Propiedades **********************************|
+    *** |********************************************************************************|
+
+    op alcoholAcabado : -> Prop [ctor] .
+    eq CFG |= alcoholAcabado = alcoholAcabado?(CFG) . 
+
+    op refrescoAcabado : -> Prop [ctor] .
+    eq CFG |= refrescoAcabado = refrescoAcabado?(CFG) .
+
+    op enCola : String -> Prop [ctor] .
+    eq CFG |= enCola(S) = enCola?(CFG, S) .
+
+    op enLocal : String -> Prop [ctor] .
+    eq CFG |= enLocal(S) = enLocal?(CFG, S) .
+
+    op menosGenteQue : Int -> Prop [ctor] .
+    eq CFG |= menosGenteQue(I) = menosGenteQue?(CFG, I) .
+
+    op bebidoDemasiado : String -> Prop [ctor] .
+    eq CFG |= bebidoDemasiado(S) = bebidoDemasiado?(CFG, S) .
+
+    op hayHieloBotellon : -> Prop [ctor] .
+    eq CFG |= hayHieloBotellon = hayHieloBotellon?(CFG) . 
+
+    op hayRefrescoBotellon : -> Prop [ctor] .
+    eq CFG |= hayRefrescoBotellon = hayRefrescoBotellon?(CFG) . 
+
+    op hayAlcoholBotellon : -> Prop [ctor] .
+    eq CFG |= hayAlcoholBotellon = hayAlcoholBotellon?(CFG) . 
+
+endm)
+
+--- **************************************************************************************
+--- ************************************ Ejercicio 4 *************************************
+--- **************************************************************************************
+--- * Comprueba si las siguientes propiedades se cumplen:
+--- *
+--- * + "Dabi" siempre está en el local.
+--- * + Si el aforo no se supera al principio, entonces no se supera nunca.
+--- * + Si alguien está en la cola acaba entrando.
+--- * + El alcohol nunca se acaba.
+--- * + Los refrescos siempre se acaban.
+--- * + En algún momento alguien bebe de más, y permanece en ese estado para siempre.
+--- * + Si hay hielo, refrescos y alcohol en la zona de botellón, entonces en algún
+--- *   momento alguien bebe de más.
+--- *
+--- * Explica brevemente el resultado del model checker en cada caso.
+--- **************************************************************************************
+
+(mod TEST-PROPS is
+    pr MODEL-CHECKER .
+    pr LTL-SIMPLIFIER .
+    pr TIPICO-SABADO-PROPS .
+    pr EJEMPLO .
+endm)
+
+***(**************************************************************************************
+
+########################################
+### "Dabi" siempre está en el local. ###
+########################################
+
+(red modelCheck(initial, [] enLocal("Dabi")) .)
+reduce in TEST-PROPS :
+  modelCheck(initial,[]enLocal("Dabi"))
+result Bool :
+  true
+
+### Explicación:
+### El manager no tiene ninguna regla que lo haga desaparecer del sistema, con lo que
+### está atrapado en el local para siempre.
+
+###########################################################################
+### Si el aforo no se supera al principio, entonces no se supera nunca. ###
+###########################################################################
+
+(red modelCheck(initial, menosGenteQue(6) -> ([] menosGenteQue(6))) .)
+reduce in TEST-PROPS :
+  modelCheck(initial,menosGenteQue(6)->[]menosGenteQue(6))
+result Bool :
+  true
+
+### Explicación:
+### Dado que por como están las reglas se impide entrar a más gente del aforo
+### que hay, resulta imposible que se pueda superar en algún momento durante la
+### ejecución (a no ser que se hubiera programado mal).
+
+##################################################
+### Si alguien está en la cola acaba entrando. ###
+##################################################
+
+(red modelCheck(initial, [] ((<> enCola("Gorka")) -> (<> enLocal("Gorka")))) .)
+reduce in TEST-PROPS :
+  modelCheck(initial,[](<> enCola("Gorka")-> <> enLocal("Gorka")))
+result ModelCheckResult :
+  counterexample(...)
+
+### Explicación:
+### Una persona puede entrar en la cola y no necesariamente entrar
+### en el local, porque o esté borracho perdido o sea menor de edad.
+
+##################################
+### El alcohol nunca se acaba. ###
+##################################
+
+(red modelCheck(initial, ~ (<> alcoholAcabado)) .)
+reduce in TEST-PROPS :
+  modelCheck(initial,~ <> alcoholAcabado)
+result Bool :
+  true
+
+### Explicación:
+### La configuración tiene que el local tiene una unidad de alcohol más que de
+### refresco, con lo que nadie la va a poder gastar.
+
+########################################
+### Los refrescos siempre se acaban. ###
+########################################
+
+(red modelCheck(initial, [] (<> refrescoAcabado)) .)
+reduce in TEST-PROPS :
+  modelCheck(initial,[]<> refrescoAcabado)
+result ModelCheckResult :
+  counterexample(...)
+
+### Explicación:
+### Al haber un menor en el sistema especificado, este se puede quedar en
+### bucle infinito y nunca gastarse los refrescos.
+
+#####################################################################################
+### En algún momento alguien bebe de más, y permanece en ese estado para siempre. ###
+#####################################################################################
+
+(red modelCheck(initial, (<> bebidoDemasiado("Manuel")) -> ([] bebidoDemasiado("Manuel"))) .)
+reduce in TEST-PROPS :
+  modelCheck(initial,<> bebidoDemasiado("Manuel")->[]bebidoDemasiado("Manuel"))
+result Bool :
+  true
+
+### Explicación:
+### Una vez el menor ha logrado beber demasiado, pues se queda en ese estado para
+### siempre al no poder entrar en el local e irse.
+
+#################################################################
+### Si hay hielo, refrescos y alcohol en la zona de botellón, ###
+### entonces en algún momento alguien bebe de más.            ###
+#################################################################
+
+(red modelCheck(initial, (<> (hayHieloBotellon /\ hayRefrescoBotellon /\ hayAlcoholBotellon)) -> (<> bebidoDemasiado(S:String))) .)
+reduce in TEST-PROPS :
+  modelCheck(initial,<>(hayHieloBotellon /\ hayRefrescoBotellon /\ hayAlcoholBotellon)-> <> bebidoDemasiado(S:String))
+result ModelCheckResult :
+  counterexample(...)
+
+### Explicación:
+### Puede ocurrir que exista alcohol en el botellón, pero por ejemplo que entre la gente
+### en el local y se vaya marchando hasta desaparecer todo el mundo que tenía alcohol.
+### Si hubiera un menor con la suficiente cantidad de alcohol en su bolsa, podría darse
+### el caso; pero en esta configuración no se planteó así.
+
+*****************************************************************************************)
+
+--- **************************************************************************************
+--- ************************************ Ejercicio 5 *************************************
+--- **************************************************************************************
+--- * Escribe qué reglas podrían transformarse en ecuaciones para optimizar el model
+--- * checking para cada una de las propiedades del ejercicio 3.
+--- **************************************************************************************
+
+***(**************************************************************************************
+
+Para transformar una regla en una ecuación se tiene que cumplir que sea: terminante,
+confluente y ser P-trasparente con la propiedad que se relaciona. Así que vamos a
+analizar cada propiedad en cuestión y qué reglas se podrían transformar.
+
+Reglas       | alcoholAcabado | refrescoAcabado | enCola | enLocal | menosGenteQue |
+=============|================|=================|========|=========|===============|
+refresco.1   |       SÍ       |       --        |   SÍ   |   SÍ    |      SÍ       |
+refresco.1h  |       SÍ       |       --        |   SÍ   |   SÍ    |      SÍ       |
+refresco.2h  |       SÍ       |       --        |   SÍ   |   SÍ    |      SÍ       |
+cubata.1     |       --       |       SÍ        |   SÍ   |   SÍ    |      SÍ       |
+cubata.2a    |       --       |       SÍ        |   SÍ   |   SÍ    |      SÍ       |
+cubata.2b    |       --       |       SÍ        |   SÍ   |   SÍ    |      SÍ       |
+cubata.2c    |       --       |       SÍ        |   SÍ   |   SÍ    |      SÍ       |
+cubata.2d    |       --       |       SÍ        |   SÍ   |   SÍ    |      SÍ       |
+cubata.2e    |       --       |       SÍ        |   SÍ   |   SÍ    |      SÍ       |
+cubata.2f    |       --       |       SÍ        |   SÍ   |   SÍ    |      SÍ       |
+cubata.3     |       --       |       SÍ        |   SÍ   |   SÍ    |      SÍ       |
+bebetelo     |       SÍ       |       SÍ        |   SÍ   |   SÍ    |      SÍ       |
+bot->esp     |       --       |       --        |   --   |   --    |      --       |
+esp->dentro  |       --       |       --        |   --   |   --    |      --       |
+esp->bot     |       --       |       --        |   --   |   --    |      --       |
+pedirref     |       SÍ       |       --        |   SÍ   |   SÍ    |      SÍ       |
+pedircop     |       --       |       SÍ        |   SÍ   |   SÍ    |      SÍ       |
+encontronazo |       SÍ       |       SÍ        |   SÍ   |   --    |      --       |
+irse         |       SÍ       |       SÍ        |   SÍ   |   --    |      --       |
+
+Reglas       | bebidoDemasiado | hayHieloBotellon | hayRefrescoBotellon | hayAlcoholBotellon |
+=============|=================|==================|=====================|====================|
+refresco.1   |       SÍ        |        --        |         --          |         SÍ         |
+refresco.1h  |       SÍ        |        --        |         --          |         SÍ         |
+refresco.2h  |       SÍ        |        --        |         --          |         SÍ         |
+cubata.1     |       SÍ        |        --        |         --          |         --         |
+cubata.2a    |       SÍ        |        --        |         --          |         --         |
+cubata.2b    |       SÍ        |        --        |         --          |         --         |
+cubata.2c    |       SÍ        |        --        |         --          |         --         |
+cubata.2d    |       SÍ        |        --        |         --          |         --         |
+cubata.2e    |       SÍ        |        --        |         --          |         --         |
+cubata.2f    |       SÍ        |        --        |         --          |         --         |
+cubata.3     |       SÍ        |        --        |         --          |         --         |
+bebetelo     |       --        |        SÍ        |         SÍ          |         SÍ         |
+bot->esp     |       --        |        --        |         --          |         --         |
+esp->dentro  |       --        |        --        |         --          |         --         |
+esp->bot     |       --        |        --        |         --          |         --         |
+pedirref     |       SÍ        |        SÍ        |         SÍ          |         SÍ         |
+pedircop     |       --        |        SÍ        |         SÍ          |         SÍ         |
+encontronazo |       --        |        SÍ        |         SÍ          |         SÍ         |
+irse         |       --        |        SÍ        |         SÍ          |         SÍ         |
+
+*****************************************************************************************)

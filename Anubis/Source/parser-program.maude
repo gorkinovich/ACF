@@ -1,0 +1,318 @@
+--- **************************************************************************************
+--- * Anubis Programming Language
+--- * Copyright (c) 2014-2015 Gorka Suárez García
+--- *
+--- * Permission is hereby granted, free of charge, to any person obtaining a copy
+--- * of this software and associated documentation files (the "Software"), to deal
+--- * in the Software without restriction, including without limitation the rights
+--- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+--- * copies of the Software, and to permit persons to whom the Software is
+--- * furnished to do so, subject to the following conditions:
+--- *
+--- * The above copyright notice and this permission notice shall be included in
+--- * all copies or substantial portions of the Software.
+--- *
+--- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+--- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+--- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+--- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+--- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+--- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+--- * DEALINGS IN THE SOFTWARE.
+--- **************************************************************************************
+
+--- |************************************************************************************|
+--- | ANUBIS-PARSER-PROGRAM: This module represents the program parsed code.             |
+--- |************************************************************************************|
+
+fmod ANUBIS-PARSER-PROGRAM is
+    protecting ANUBIS-PARSER-ERROR .
+    protecting ANUBIS-PARSER-PRGTYPE .
+
+    *** |================================================================================|
+    *** | Subsorts                                                                       |
+    *** |================================================================================|
+
+    subsort Error < Program .
+
+    *** |================================================================================|
+    *** | Operators                                                                      |
+    *** |================================================================================|
+
+    op parseSourceCode : SourceCode -> Program .
+    op parseSourceCode : Program SourceCode -> Program .
+    op parseDeclaration : Program Declaration -> Program .
+
+    op parseAliasDecl : AliasDeclaration -> AliasItem .
+    op parseFuncDecl : FunctionDeclaration -> FunctionItem .
+
+    op parseClassDecl : ClassDeclaration -> TypeItem .
+    op parseClassMembers : TypeItem BlockOfClassMemberDeclarations -> TypeItem .
+    op parseClassMembers : TypeItem ClassMemberDeclarations -> TypeItem .
+
+    op parseMemberDecl : TypeItem ClassMemberDeclaration -> TypeItem .
+    op parseCtorDecl : ClassConstructorDeclaration -> ConstructorItem .
+    op parseDtorDecl : ClassDestructorDeclaration -> DestructorItem .
+    op parsePropDecl : ClassPropertyDeclaration -> PropertyItem .
+    op parseConstDecl : ClassConstantDeclaration -> FieldsList .
+    op parseFieldDecl : ClassFieldDeclaration -> FieldsList .
+    op parseMethodDecl : ClassMethodDeclaration -> MethodItem .
+
+    op insertField : TypeItem FieldsList Statement -> TypeItem .
+    op insertField' : TypeItem FieldsList Statement -> TypeItem .
+    op insertProp : TypeItem PropertyItem -> TypeItem .
+    op insertProp' : TypeItem PropertyItem -> TypeItem .
+    op cdeclToInitStat : ClassMemberDeclaration -> Statement .
+    op itemToInitStat : PropertyItem -> Statement .
+    op itemToInitStat' : TypeIdentifier Identifier -> Statement .
+    op toConstsList : FieldsList -> FieldsList .
+    op changeModifiers : Bool MemberVisibility FieldsList -> FieldsList .
+    op changeLangType : LangType FieldsList -> FieldsList .
+    op getFieldItems : MatchExpression -> FieldsList .
+    op getFieldItems' : SequenceOfMatchExpressions -> FieldsList .
+
+    op parseParamsExpr : FunctionParametersExpression -> ParametersList .
+    op parseFuncParams : SequenceOfExpressions -> ParametersList .
+    op parseFathers : ClassParametersExpression -> FathersList .
+    op parseFthSeq : SequenceOfExpressions -> FathersList .
+    op isStaticModifier : ClassMemberModifier -> Bool .
+    op modifierToVisibility : ClassMemberModifier -> MemberVisibility .
+
+    *** |================================================================================|
+    *** | Variables                                                                      |
+    *** |================================================================================|
+
+    var B : Bool .
+
+    var ERR : Error .
+    var PRG : Program .
+    var DCL : Declaration .
+    var DCS : Declarations .
+    var STM : Statement .
+    var STS : Statements .
+    var IDR : Identifier .
+    var SOE : SequenceOfExpressions .
+    var SME : SequenceOfMatchExpressions .
+    var FSE : FunctionSignatureExpression .
+    var FPE : FunctionParametersExpression .
+    var CPE : ClassParametersExpression .
+    var CMM : ClassMemberModifier .
+    var LME : ListMatchExpression .
+    var VLE : ValueExpression .
+    var LTP : LangType .
+
+    vars TID TID' : TypeIdentifier .
+    vars FPA FPA' : FunctionParameter .
+    vars BOS BOS' : BlockOfStatements .
+    vars MEX MEX' : MatchExpression .
+
+    var TYPITM : TypeItem .
+    var FLDITM : FieldItem .
+    var FLDLST : FieldsList .
+    var PRPITM : PropertyItem .
+    var MEMVIS : MemberVisibility .
+
+    var INCDCL : IncludeDeclaration .
+    var ALSDCL : AliasDeclaration .
+    var GCNDCL : GlobalConstantDeclaration .
+    var GVRDCL : GlobalVariableDeclaration .
+    var FNCDCL : FunctionDeclaration .
+    var CLSDCL : ClassDeclaration .
+    var CMBDCL : ClassMemberDeclaration .
+    var CMBDCS : ClassMemberDeclarations .
+    var BOMDCL : BlockOfClassMemberDeclarations .
+    var CCTDCL : ClassConstructorDeclaration .
+    var CDTDCL : ClassDestructorDeclaration .
+    var CCNDCL : ClassConstantDeclaration .
+    var CFLDCL : ClassFieldDeclaration .
+    var CMTDCL : ClassMethodDeclaration .
+    var CPRDCL : ClassPropertyDeclaration .
+
+    *** |================================================================================|
+    *** | Equations                                                                      |
+    *** |================================================================================|
+
+    eq parseSourceCode(DCS) = parseSourceCode(programCreate, DCS) .
+
+    eq parseSourceCode(PRG, DCL) = parseDeclaration(PRG, DCL) .
+    eq parseSourceCode(PRG, DCL DCS) = parseSourceCode(parseDeclaration(PRG, DCL), DCS) .
+    eq parseSourceCode(ERR, DCS) = ERR .
+
+    eq parseDeclaration(PRG, INCDCL) = PRG .
+    eq parseDeclaration(PRG, ALSDCL) = PRG[Alias: (PRG[Alias] parseAliasDecl(ALSDCL))] .
+    eq parseDeclaration(PRG, GCNDCL) = PRG[Start: addToBlock(GCNDCL, PRG[Start])] .
+    eq parseDeclaration(PRG, GVRDCL) = PRG[Start: addToBlock(GVRDCL, PRG[Start])] .
+    eq parseDeclaration(PRG, FNCDCL) = PRG[Functions: (PRG[Functions] parseFuncDecl(FNCDCL))] .
+    eq parseDeclaration(PRG, CLSDCL) = PRG[Types: (PRG[Types] parseClassDecl(CLSDCL))] .
+    eq parseDeclaration(PRG, DCL) = #error#("Invalid declaration.") [owise] .
+
+    eq parseAliasDecl(alias TID IDR ;) = alias(string(IDR), string(TID), false) .
+    eq parseAliasDecl(alias TID [] IDR ;) = alias(string(IDR), string(TID), true) .
+
+    eq parseFuncDecl(func FSE ;) = finil .
+    eq parseFuncDecl(function FSE ;) = finil .
+    eq parseFuncDecl(func FSE : TID ;) = finil .
+    eq parseFuncDecl(function FSE : TID ;) = finil .
+    eq parseFuncDecl(func IDR FPE BOS) = func(string(IDR), parseParamsExpr(FPE), dynamicType, BOS) .
+    eq parseFuncDecl(function IDR FPE BOS) = func(string(IDR), parseParamsExpr(FPE), dynamicType, BOS) .
+    eq parseFuncDecl(func IDR FPE : TID BOS) = func(string(IDR), parseParamsExpr(FPE), string(TID), BOS) .
+    eq parseFuncDecl(function IDR FPE : TID BOS) = func(string(IDR), parseParamsExpr(FPE), string(TID), BOS) .
+
+    eq parseClassDecl(class IDR BOMDCL) = parseClassMembers(typeItemCreate(string(IDR), fainil), BOMDCL) .
+    eq parseClassDecl(class IDR CPE BOMDCL) = parseClassMembers(typeItemCreate(string(IDR), parseFathers(CPE)), BOMDCL) .
+
+    eq parseClassMembers(TYPITM, {}) = TYPITM .
+    eq parseClassMembers(TYPITM, { CMBDCL }) = parseClassMembers(TYPITM, CMBDCL) .
+    eq parseClassMembers(TYPITM, { CMBDCS }) = parseClassMembers(TYPITM, CMBDCS) .
+
+    eq parseClassMembers(TYPITM, CMBDCL) = parseMemberDecl(TYPITM, CMBDCL) .
+    eq parseClassMembers(TYPITM, CMBDCL CMBDCS) = parseClassMembers(parseMemberDecl(TYPITM, CMBDCL), CMBDCS) .
+    eq parseClassMembers(TYPITM, CMBDCL STS) = parseClassMembers(parseMemberDecl(TYPITM, CMBDCL), STS) .
+
+    eq parseMemberDecl(TYPITM, CCTDCL) = TYPITM[Constructors: (TYPITM[Constructors] parseCtorDecl(CCTDCL))] .
+    eq parseMemberDecl(TYPITM, CDTDCL) = TYPITM[Destructor: parseDtorDecl(CDTDCL)] .
+    eq parseMemberDecl(TYPITM, CCNDCL) = insertField(TYPITM, parseConstDecl(CCNDCL), cdeclToInitStat(CCNDCL)) .
+    eq parseMemberDecl(TYPITM, CFLDCL) = insertField(TYPITM, parseFieldDecl(CFLDCL), cdeclToInitStat(CFLDCL)) .
+    eq parseMemberDecl(TYPITM, CMTDCL) = TYPITM[Methods: (TYPITM[Methods] parseMethodDecl(CMTDCL))] .
+    eq parseMemberDecl(TYPITM, CPRDCL) = insertProp(TYPITM, parsePropDecl(CPRDCL)) .
+
+    eq parseCtorDecl(ctor FPE BOS) = ctor(false, mpubl, parseParamsExpr(FPE), BOS) .
+    eq parseCtorDecl(constructor FPE BOS) = ctor(false, mpubl, parseParamsExpr(FPE), BOS) .
+    eq parseCtorDecl(CMM ctor FPE BOS) = ctor(isStaticModifier(CMM), modifierToVisibility(CMM), parseParamsExpr(FPE), BOS) .
+    eq parseCtorDecl(CMM constructor FPE BOS) = ctor(isStaticModifier(CMM), modifierToVisibility(CMM), parseParamsExpr(FPE), BOS) .
+
+    eq parseDtorDecl(dtor () BOS) = dtor(BOS) .
+    eq parseDtorDecl(destructor () BOS) = dtor(BOS) .
+    eq parseDtorDecl(CDTDCL) = dtinil [owise] .
+
+    eq parsePropDecl(prop IDR { get }) = prop(string(IDR), false, mpubl, dynamicType, false, false, {}, {}) .
+    eq parsePropDecl(property IDR { get }) = prop(string(IDR), false, mpubl, dynamicType, false, false, {}, {}) .
+    eq parsePropDecl(prop IDR { get set }) = prop(string(IDR), false, mpubl, dynamicType, false, true, {}, {}) .
+    eq parsePropDecl(property IDR { get set }) = prop(string(IDR), false, mpubl, dynamicType, false, true, {}, {}) .
+    eq parsePropDecl(prop IDR { get BOS }) = prop(string(IDR), false, mpubl, dynamicType, true, false, BOS, {}) .
+    eq parsePropDecl(property IDR { get BOS }) = prop(string(IDR), false, mpubl, dynamicType, true, false, BOS, {}) .
+    eq parsePropDecl(prop IDR { get BOS set BOS' }) = prop(string(IDR), false, mpubl, dynamicType, true, true, BOS, BOS') .
+    eq parsePropDecl(property IDR { get BOS set BOS' }) = prop(string(IDR), false, mpubl, dynamicType, true, true, BOS, BOS') .
+    eq parsePropDecl(CMM prop IDR { get }) = prop(string(IDR), isStaticModifier(CMM), modifierToVisibility(CMM), dynamicType, false, false, {}, {}) .
+    eq parsePropDecl(CMM property IDR { get }) = prop(string(IDR), isStaticModifier(CMM), modifierToVisibility(CMM), dynamicType, false, false, {}, {}) .
+    eq parsePropDecl(CMM prop IDR { get set }) = prop(string(IDR), isStaticModifier(CMM), modifierToVisibility(CMM), dynamicType, false, true, {}, {}) .
+    eq parsePropDecl(CMM property IDR { get set }) = prop(string(IDR), isStaticModifier(CMM), modifierToVisibility(CMM), dynamicType, false, true, {}, {}) .
+    eq parsePropDecl(CMM prop IDR { get BOS }) = prop(string(IDR), isStaticModifier(CMM), modifierToVisibility(CMM), dynamicType, true, false, BOS, {}) .
+    eq parsePropDecl(CMM property IDR { get BOS }) = prop(string(IDR), isStaticModifier(CMM), modifierToVisibility(CMM), dynamicType, true, false, BOS, {}) .
+    eq parsePropDecl(CMM prop IDR { get BOS set BOS' }) = prop(string(IDR), isStaticModifier(CMM), modifierToVisibility(CMM), dynamicType, true, true, BOS, BOS') .
+    eq parsePropDecl(CMM property IDR { get BOS set BOS' }) = prop(string(IDR), isStaticModifier(CMM), modifierToVisibility(CMM), dynamicType, true, true, BOS, BOS') .
+    eq parsePropDecl(prop IDR : TID { get }) = prop(string(IDR), false, mpubl, string(TID), false, false, {}, {}) .
+    eq parsePropDecl(property IDR : TID { get }) = prop(string(IDR), false, mpubl, string(TID), false, false, {}, {}) .
+    eq parsePropDecl(prop IDR : TID { get set }) = prop(string(IDR), false, mpubl, string(TID), false, true, {}, {}) .
+    eq parsePropDecl(property IDR : TID { get set }) = prop(string(IDR), false, mpubl, string(TID), false, true, {}, {}) .
+    eq parsePropDecl(prop IDR : TID { get BOS }) = prop(string(IDR), false, mpubl, string(TID), true, false, BOS, {}) .
+    eq parsePropDecl(property IDR : TID { get BOS }) = prop(string(IDR), false, mpubl, string(TID), true, false, BOS, {}) .
+    eq parsePropDecl(prop IDR : TID { get BOS set BOS' }) = prop(string(IDR), false, mpubl, string(TID), true, true, BOS, BOS') .
+    eq parsePropDecl(property IDR : TID { get BOS set BOS' }) = prop(string(IDR), false, mpubl, string(TID), true, true, BOS, BOS') .
+    eq parsePropDecl(CMM prop IDR : TID { get }) = prop(string(IDR), isStaticModifier(CMM), modifierToVisibility(CMM), string(TID), false, false, {}, {}) .
+    eq parsePropDecl(CMM property IDR : TID { get }) = prop(string(IDR), isStaticModifier(CMM), modifierToVisibility(CMM), string(TID), false, false, {}, {}) .
+    eq parsePropDecl(CMM prop IDR : TID { get set }) = prop(string(IDR), isStaticModifier(CMM), modifierToVisibility(CMM), string(TID), false, true, {}, {}) .
+    eq parsePropDecl(CMM property IDR : TID { get set }) = prop(string(IDR), isStaticModifier(CMM), modifierToVisibility(CMM), string(TID), false, true, {}, {}) .
+    eq parsePropDecl(CMM prop IDR : TID { get BOS }) = prop(string(IDR), isStaticModifier(CMM), modifierToVisibility(CMM), string(TID), true, false, BOS, {}) .
+    eq parsePropDecl(CMM property IDR : TID { get BOS }) = prop(string(IDR), isStaticModifier(CMM), modifierToVisibility(CMM), string(TID), true, false, BOS, {}) .
+    eq parsePropDecl(CMM prop IDR : TID { get BOS set BOS' }) = prop(string(IDR), isStaticModifier(CMM), modifierToVisibility(CMM), string(TID), true, true, BOS, BOS') .
+    eq parsePropDecl(CMM property IDR : TID { get BOS set BOS' }) = prop(string(IDR), isStaticModifier(CMM), modifierToVisibility(CMM), string(TID), true, true, BOS, BOS') .
+
+    eq parseConstDecl(const MEX ;) = changeModifiers(true, mpubl, toConstsList(getFieldItems(MEX))) .
+    eq parseConstDecl(const SME ;) = changeModifiers(true, mpubl, toConstsList(getFieldItems'(SME))) .
+    eq parseConstDecl(CMM const MEX ;) = changeModifiers(true, modifierToVisibility(CMM), toConstsList(getFieldItems(MEX))) .
+    eq parseConstDecl(CMM const SME ;) = changeModifiers(true, modifierToVisibility(CMM), toConstsList(getFieldItems'(SME))) .
+    eq parseFieldDecl(var MEX ;) = changeModifiers(false, mpubl, getFieldItems(MEX)) .
+    eq parseFieldDecl(var SME ;) = changeModifiers(false, mpubl, getFieldItems'(SME)) .
+    eq parseFieldDecl(CMM var MEX ;) = changeModifiers(isStaticModifier(CMM), modifierToVisibility(CMM), getFieldItems(MEX)) .
+    eq parseFieldDecl(CMM var SME ;) = changeModifiers(isStaticModifier(CMM), modifierToVisibility(CMM), getFieldItems'(SME)) .
+
+    eq parseMethodDecl(func IDR FPE ;) = method(string(IDR), false, mpubl, parseParamsExpr(FPE), dynamicType, {}) .
+    eq parseMethodDecl(function IDR FPE ;) = method(string(IDR), false, mpubl, parseParamsExpr(FPE), dynamicType, {}) .
+    eq parseMethodDecl(func IDR FPE : TID ;) = method(string(IDR), false, mpubl, parseParamsExpr(FPE), string(TID), {}) .
+    eq parseMethodDecl(function IDR FPE : TID ;) = method(string(IDR), false, mpubl, parseParamsExpr(FPE), string(TID), {}) .
+    eq parseMethodDecl(func IDR FPE BOS) = method(string(IDR), false, mpubl, parseParamsExpr(FPE), dynamicType, BOS) .
+    eq parseMethodDecl(function IDR FPE BOS) = method(string(IDR), false, mpubl, parseParamsExpr(FPE), dynamicType, BOS) .
+    eq parseMethodDecl(func IDR FPE : TID BOS) = method(string(IDR), false, mpubl, parseParamsExpr(FPE), string(TID), BOS) .
+    eq parseMethodDecl(function IDR FPE : TID BOS) = method(string(IDR), false, mpubl, parseParamsExpr(FPE), string(TID), BOS) .
+    eq parseMethodDecl(CMM func IDR FPE ;) = method(string(IDR), isStaticModifier(CMM), modifierToVisibility(CMM), parseParamsExpr(FPE), dynamicType, {}) .
+    eq parseMethodDecl(CMM function IDR FPE ;) = method(string(IDR), isStaticModifier(CMM), modifierToVisibility(CMM), parseParamsExpr(FPE), dynamicType, {}) .
+    eq parseMethodDecl(CMM func IDR FPE : TID ;) = method(string(IDR), isStaticModifier(CMM), modifierToVisibility(CMM), parseParamsExpr(FPE), string(TID), {}) .
+    eq parseMethodDecl(CMM function IDR FPE : TID ;) = method(string(IDR), isStaticModifier(CMM), modifierToVisibility(CMM), parseParamsExpr(FPE), string(TID), {}) .
+    eq parseMethodDecl(CMM func IDR FPE BOS) = method(string(IDR), isStaticModifier(CMM), modifierToVisibility(CMM), parseParamsExpr(FPE), dynamicType, BOS) .
+    eq parseMethodDecl(CMM function IDR FPE BOS) = method(string(IDR), isStaticModifier(CMM), modifierToVisibility(CMM), parseParamsExpr(FPE), dynamicType, BOS) .
+    eq parseMethodDecl(CMM func IDR FPE : TID BOS) = method(string(IDR), isStaticModifier(CMM), modifierToVisibility(CMM), parseParamsExpr(FPE), string(TID), BOS) .
+    eq parseMethodDecl(CMM function IDR FPE : TID BOS) = method(string(IDR), isStaticModifier(CMM), modifierToVisibility(CMM), parseParamsExpr(FPE), string(TID), BOS) .
+
+    eq insertField(TYPITM, FLDLST, STM) = insertField'(TYPITM[Fields: (TYPITM[Fields] FLDLST)], FLDLST, STM) .
+    eq insertField'(TYPITM, flinil, STM) = TYPITM .
+    eq insertField'(TYPITM, FLDITM FLDLST, STM) =
+        if FLDITM[IsStatic] then TYPITM[Start: addToBlock(STM, TYPITM[Start])]
+        else TYPITM[Build: addToBlock(STM, TYPITM[Build])] fi .
+
+    eq insertProp(TYPITM, PRPITM) = insertProp'(TYPITM[Properties: (TYPITM[Properties] PRPITM)], PRPITM) .
+    eq insertProp'(TYPITM, PRPITM) = if PRPITM[WithBody] then TYPITM else
+        if PRPITM[IsStatic] then TYPITM[Start: addToBlock(itemToInitStat(PRPITM), TYPITM[Start])]
+        else TYPITM[Build: addToBlock(itemToInitStat(PRPITM), TYPITM[Build])] fi fi .
+
+    eq cdeclToInitStat(CMM const MEX ;) = const MEX ; .
+    eq cdeclToInitStat(CMM const SME ;) = const SME ; .
+    eq cdeclToInitStat(CMM var MEX ;) = var MEX ; .
+    eq cdeclToInitStat(CMM var SME ;) = var SME ; .
+    eq cdeclToInitStat(STM) = STM [owise] .
+
+    eq itemToInitStat(PRPITM) = itemToInitStat'(qid(PRPITM[Type]), qid(PRPITM[Name])) .
+    eq itemToInitStat'(TID, IDR) = var IDR -> TID ; .
+
+    eq toConstsList(flinil) = flinil .
+    eq toConstsList(FLDITM FLDLST) = (FLDITM[IsConst: true]) toConstsList(FLDLST) .
+
+    eq changeModifiers(B, MEMVIS, flinil) = flinil .
+    eq changeModifiers(B, MEMVIS, FLDITM FLDLST) = ((FLDITM[IsStatic: B])[Visibility: MEMVIS])
+        changeModifiers(B, MEMVIS, FLDLST) .
+
+    eq changeLangType(LTP, flinil) = flinil .
+    eq changeLangType(LTP, FLDITM FLDLST) = (FLDITM[Type: LTP]) changeLangType(LTP, FLDLST) .
+
+    eq getFieldItems(IDR) = field(string(IDR), false, mpubl, false, dynamicType) .
+    eq getFieldItems(IDR -> TID) = field(string(IDR), false, mpubl, false, string(TID)) .
+    eq getFieldItems(LME -> TID) = changeLangType(string(TID), getFieldItems(LME)) .
+    eq getFieldItems(MEX :: MEX') = getFieldItems(MEX) getFieldItems(MEX') .
+    eq getFieldItems(< SME >) = getFieldItems'(SME) .
+    eq getFieldItems([ MEX ]) = getFieldItems(MEX) .
+    eq getFieldItems([ SME ]) = getFieldItems'(SME) .
+    eq getFieldItems(MEX = VLE) = getFieldItems(MEX) .
+    eq getFieldItems'(MEX, MEX') = getFieldItems(MEX) getFieldItems(MEX') .
+    eq getFieldItems'(SME, MEX) = getFieldItems'(SME) getFieldItems(MEX) .
+    eq getFieldItems(MEX) = flinil [owise] .
+
+    eq parseParamsExpr(()) = painil .
+    eq parseParamsExpr((FPA)) = param(FPA) .
+    eq parseParamsExpr((SOE)) = parseFuncParams(SOE) .
+
+    eq parseFuncParams(FPA, FPA') = param(FPA) param(FPA') .
+    eq parseFuncParams(SOE, FPA) = parseFuncParams(SOE) param(FPA) .
+
+    eq parseFathers(()) = fainil .
+    eq parseFathers((TID)) = string(TID) .
+    eq parseFathers((SOE)) = parseFthSeq(SOE) .
+
+    eq parseFthSeq(TID, TID') = string(TID) string(TID') .
+    eq parseFthSeq(SOE, TID) = parseFthSeq(SOE) string(TID) .
+
+    eq isStaticModifier([@]) = true .
+    eq isStaticModifier([@+]) = true .
+    eq isStaticModifier([@-]) = true .
+    eq isStaticModifier([+@]) = true .
+    eq isStaticModifier([-@]) = true .
+    eq isStaticModifier(CMM) = false [owise] .
+
+    eq modifierToVisibility([+]) = mprot .
+    eq modifierToVisibility([-]) = mpriv .
+    eq modifierToVisibility([@]) = mpubl .
+    eq modifierToVisibility([@+]) = mprot .
+    eq modifierToVisibility([@-]) = mpriv .
+    eq modifierToVisibility([+@]) = mprot .
+    eq modifierToVisibility([-@]) = mpriv .
+
+endfm

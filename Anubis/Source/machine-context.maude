@@ -1,0 +1,144 @@
+--- **************************************************************************************
+--- * Anubis Programming Language
+--- * Copyright (c) 2014-2015 Gorka Suárez García
+--- *
+--- * Permission is hereby granted, free of charge, to any person obtaining a copy
+--- * of this software and associated documentation files (the "Software"), to deal
+--- * in the Software without restriction, including without limitation the rights
+--- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+--- * copies of the Software, and to permit persons to whom the Software is
+--- * furnished to do so, subject to the following conditions:
+--- *
+--- * The above copyright notice and this permission notice shall be included in
+--- * all copies or substantial portions of the Software.
+--- *
+--- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+--- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+--- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+--- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+--- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+--- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+--- * DEALINGS IN THE SOFTWARE.
+--- **************************************************************************************
+
+--- |************************************************************************************|
+--- | ANUBIS-MACHINE-CONTEXT: This module represents a context inside the machine.       |
+--- |************************************************************************************|
+
+fmod ANUBIS-MACHINE-CONTEXT is
+    protecting ANUBIS-MACHINE-AMBIT .
+    protecting ANUBIS-MACHINE-REGISTERS .
+    protecting ANUBIS-SYNTAX .
+    protecting ANUBIS-UTILITY-STATEMENT .
+
+    *** |================================================================================|
+    *** | Sorts                                                                          |
+    *** |================================================================================|
+
+    sorts Context ContextStack Instructions InstructionsStack .
+
+    *** |================================================================================|
+    *** | Subsorts                                                                       |
+    *** |================================================================================|
+
+    subsort Context < ContextStack .
+    subsort Instructions < InstructionsStack .
+
+    *** |================================================================================|
+    *** | Operators                                                                      |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // Data
+    --- //--------------------------------------------------------------------------------
+
+    op ctnil : -> Context [ctor] .
+    op innil : -> Instructions [ctor] .
+
+    op context : Registers AmbitStack Instructions InstructionsStack -> Context [ctor] .
+    op instr : Statements -> Instructions [ctor] .
+
+    op __ : ContextStack ContextStack -> ContextStack [ctor assoc id: ctnil] .
+    op __ : InstructionsStack InstructionsStack -> InstructionsStack [ctor assoc id: innil] .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Functions
+    --- //--------------------------------------------------------------------------------
+
+    op contextCreate : -> Context .
+    op contextCreate : Ambit Instructions -> Context .
+    op addStatements : Instructions Statements -> Instructions .
+
+    op pushContext : Context ContextStack -> ContextStack .
+    op popContext : ContextStack -> ContextStack .
+    op topContext : ContextStack -> Context .
+
+    op pushInstructions : Instructions InstructionsStack -> InstructionsStack .
+    op popInstructions : InstructionsStack -> InstructionsStack .
+    op topInstructions : InstructionsStack -> Instructions .
+
+    op _`[Registers`] : Context -> Registers .
+    op _`[AmbitStack`] : Context -> AmbitStack .
+    op _`[Instructions`] : Context -> Instructions .
+    op _`[InstructionsStack`] : Context -> InstructionsStack .
+
+    op _`[Registers:_`] : Context Registers -> Context .
+    op _`[AmbitStack:_`] : Context AmbitStack -> Context .
+    op _`[Instructions:_`] : Context Instructions -> Context .
+    op _`[InstructionsStack:_`] : Context InstructionsStack  -> Context .
+
+    op _`[Statements`] : Instructions -> Statements .
+
+    op _`[Statements:_`] : Instructions Statements -> Instructions .
+
+    *** |================================================================================|
+    *** | Variables                                                                      |
+    *** |================================================================================|
+
+    var AMBT : Ambit .
+    var CNTX : Context .
+    var CNTS : ContextStack .
+
+    vars REGS REGS' : Registers .
+    vars AMBS AMBS' : AmbitStack .
+    vars INST INST' : Instructions .
+    vars INSS INSS' : InstructionsStack .
+    vars STMS STMS' : Statements .
+
+    *** |================================================================================|
+    *** | Equations                                                                      |
+    *** |================================================================================|
+
+    eq contextCreate = context(registersCreate, node(adnil), innil, innil) .
+    eq contextCreate(AMBT, INST) = context(registersCreate, node(AMBT), INST, innil) .
+
+    eq addStatements(innil, STMS) = instr(STMS) .
+    eq addStatements(instr(STMS), STMS') = instr(addStatements(STMS, STMS')) .
+
+    eq pushContext(CNTX, CNTS) = CNTX CNTS .
+    eq popContext(ctnil) = ctnil .
+    eq popContext(CNTX CNTS) = CNTS .
+    eq topContext(ctnil) = ctnil .
+    eq topContext(CNTX CNTS) = CNTX .
+
+    eq pushInstructions(INST, INSS) = INST INSS .
+    eq popInstructions(innil) = innil .
+    eq popInstructions(INST INSS) = INSS .
+    eq topInstructions(innil) = innil .
+    eq topInstructions(INST INSS) = INST .
+
+    eq context(REGS, AMBS, INST, INSS) [Registers] = REGS .
+    eq context(REGS, AMBS, INST, INSS) [AmbitStack] = AMBS .
+    eq context(REGS, AMBS, INST, INSS) [Instructions] = INST .
+    eq context(REGS, AMBS, INST, INSS) [InstructionsStack] = INSS .
+
+    eq context(REGS, AMBS, INST, INSS) [Registers: REGS'] = context(REGS', AMBS, INST, INSS) .
+    eq context(REGS, AMBS, INST, INSS) [AmbitStack: AMBS'] = context(REGS, AMBS', INST, INSS) .
+    eq context(REGS, AMBS, INST, INSS) [Instructions: INST'] = context(REGS, AMBS, INST', INSS) .
+    eq context(REGS, AMBS, INST, INSS) [InstructionsStack: INSS'] = context(REGS, AMBS, INST, INSS')  .
+
+    eq instr(STMS) [Statements] = STMS .
+
+    eq instr(STMS) [Statements: STMS'] = instr(STMS') .
+
+endfm

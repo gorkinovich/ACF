@@ -1,0 +1,418 @@
+--- **************************************************************************************
+--- * Anubis Programming Language
+--- * Copyright (c) 2014-2015 Gorka Suárez García
+--- *
+--- * Permission is hereby granted, free of charge, to any person obtaining a copy
+--- * of this software and associated documentation files (the "Software"), to deal
+--- * in the Software without restriction, including without limitation the rights
+--- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+--- * copies of the Software, and to permit persons to whom the Software is
+--- * furnished to do so, subject to the following conditions:
+--- *
+--- * The above copyright notice and this permission notice shall be included in
+--- * all copies or substantial portions of the Software.
+--- *
+--- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+--- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+--- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+--- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+--- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+--- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+--- * DEALINGS IN THE SOFTWARE.
+--- **************************************************************************************
+
+--- |************************************************************************************|
+--- | ANUBIS-PARSER-PRGTYPE: This module represents the program parsed code.             |
+--- |************************************************************************************|
+
+fmod ANUBIS-PARSER-PRGTYPE is
+    protecting ANUBIS-SYNTAX .
+    protecting ANUBIS-PARSER-ERROR .
+    protecting ANUBIS-LANG-TYPES .
+    protecting ANUBIS-UTILITY-STATEMENT .
+
+    *** |================================================================================|
+    *** | Sorts                                                                          |
+    *** |================================================================================|
+
+    sorts Program StartSequence BuildSequence AliasItem TypeItem FunctionItem
+          LambdaItem ConstructorItem DestructorItem PropertyItem FieldItem MethodItem
+          ParameterItem FatherItem AliasesList TypesList FunctionsList LambdasList
+          ConstructorsList PropertiesList FieldsList MethodsList ParametersList
+          FathersList MemberVisibility .
+
+    *** |================================================================================|
+    *** | Subsorts                                                                       |
+    *** |================================================================================|
+
+    subsort BlockOfStatements < StartSequence BuildSequence .
+
+    subsort AliasItem < AliasesList .
+    subsort TypeItem < TypesList .
+    subsort FunctionItem < FunctionsList .
+    subsort LambdaItem < LambdasList .
+    subsort ConstructorItem < ConstructorsList .
+    subsort PropertyItem < PropertiesList .
+    subsort FieldItem < FieldsList .
+    subsort MethodItem < MethodsList .
+    subsort ParameterItem < ParametersList .
+    subsort LangType < FatherItem < FathersList .
+
+    *** |================================================================================|
+    *** | Operators (Data)                                                               |
+    *** |================================================================================|
+
+    ops mpubl mprot mpriv : -> MemberVisibility [ctor] .
+
+    op pnil : -> Program [ctor] .
+    op ainil : -> AliasItem [ctor] .
+    op tinil : -> TypeItem [ctor] .
+    op finil : -> FunctionItem [ctor] .
+    op linil : -> LambdaItem [ctor] .
+    op ctinil : -> ConstructorItem [ctor] .
+    op dtinil : -> DestructorItem [ctor] .
+    op prinil : -> PropertyItem [ctor] .
+    op flinil : -> FieldItem [ctor] .
+    op mtinil : -> MethodItem [ctor] .
+    op painil : -> ParameterItem [ctor] .
+    op fainil : -> FatherItem [ctor] .
+
+    op __ : AliasesList AliasesList -> AliasesList [ctor assoc comm id: ainil] .
+    op __ : TypesList TypesList -> TypesList [ctor assoc comm id: tinil] .
+    op __ : FunctionsList FunctionsList -> FunctionsList [ctor assoc comm id: finil] .
+    op __ : LambdasList LambdasList -> LambdasList [ctor assoc comm id: linil] .
+    op __ : ConstructorsList ConstructorsList -> ConstructorsList [ctor assoc comm id: ctinil] .
+    op __ : PropertiesList PropertiesList -> PropertiesList [ctor assoc comm id: prinil] .
+    op __ : FieldsList FieldsList -> FieldsList [ctor assoc comm id: flinil] .
+    op __ : MethodsList MethodsList -> MethodsList [ctor assoc comm id: mtinil] .
+    op __ : ParametersList ParametersList -> ParametersList [ctor assoc id: painil] .
+    op __ : FathersList FathersList -> FathersList [ctor assoc id: fainil] .
+
+    op alias : LangType LangType Bool -> AliasItem [ctor] .
+    op type : LangType FathersList ConstructorsList DestructorItem PropertiesList
+              FieldsList MethodsList StartSequence BuildSequence -> TypeItem [ctor] .
+    op func : String ParametersList LangType BlockOfStatements -> FunctionItem [ctor] .
+    op lambda : Nat ParametersList BlockOfStatements LambdaExpression -> LambdaItem [ctor] .
+    op param : FunctionParameter -> ParameterItem [ctor] .
+
+    op ctor : Bool MemberVisibility ParametersList BlockOfStatements -> ConstructorItem [ctor] .
+    op dtor : BlockOfStatements -> DestructorItem [ctor] .
+    op prop : String Bool MemberVisibility LangType Bool Bool BlockOfStatements BlockOfStatements -> PropertyItem [ctor] .
+    op field : String Bool MemberVisibility Bool LangType -> FieldItem [ctor] .
+    op method : String Bool MemberVisibility ParametersList LangType BlockOfStatements -> MethodItem [ctor] .
+
+    op program : AliasesList TypesList FunctionsList LambdasList StartSequence -> Program [ctor] .
+
+    *** |================================================================================|
+    *** | Operators (Functions)                                                          |
+    *** |================================================================================|
+
+    op programCreate : -> Program .
+    op typeItemCreate : LangType FathersList -> TypeItem .
+
+    *** |================================================================================|
+    *** | Operators (Program Properties)                                                 |
+    *** |================================================================================|
+
+    op _`[Alias`] : Program -> AliasesList .
+    op _`[Types`] : Program -> TypesList .
+    op _`[Functions`] : Program -> FunctionsList .
+    op _`[Lambdas`] : Program -> LambdasList .
+    op _`[Start`] : Program -> StartSequence .
+
+    op _`[Alias:_`] : Program AliasesList -> Program .
+    op _`[Types:_`] : Program TypesList -> Program .
+    op _`[Functions:_`] : Program FunctionsList -> Program .
+    op _`[Lambdas:_`] : Program LambdasList -> Program .
+    op _`[Start:_`] : Program StartSequence -> Program .
+
+    *** |================================================================================|
+    *** | Operators (Type Properties)                                                    |
+    *** |================================================================================|
+
+    op _`[Name`] : TypeItem -> LangType .
+    op _`[Fathers`] : TypeItem -> FathersList .
+    op _`[Constructors`] : TypeItem -> ConstructorsList .
+    op _`[Destructor`] : TypeItem -> DestructorItem .
+    op _`[Properties`] : TypeItem -> PropertiesList .
+    op _`[Fields`] : TypeItem -> FieldsList .
+    op _`[Methods`] : TypeItem -> MethodsList .
+    op _`[Start`] : TypeItem -> StartSequence .
+    op _`[Build`] : TypeItem -> BuildSequence .
+
+    op _`[Name:_`] : TypeItem LangType -> TypeItem .
+    op _`[Fathers:_`] : TypeItem FathersList -> TypeItem .
+    op _`[Constructors:_`] : TypeItem ConstructorsList -> TypeItem .
+    op _`[Destructor:_`] : TypeItem DestructorItem -> TypeItem .
+    op _`[Properties:_`] : TypeItem PropertiesList -> TypeItem .
+    op _`[Fields:_`] : TypeItem FieldsList -> TypeItem .
+    op _`[Methods:_`] : TypeItem MethodsList -> TypeItem .
+    op _`[Start:_`] : TypeItem StartSequence -> TypeItem .
+    op _`[Build:_`] : TypeItem BuildSequence -> TypeItem .
+
+    *** |================================================================================|
+    *** | Operators (Alias Properties)                                                   |
+    *** |================================================================================|
+
+    op _`[Name`] : AliasItem -> LangType .
+    op _`[Type`] : AliasItem -> LangType .
+    op _`[IsList`] : AliasItem -> Bool .
+
+    *** |================================================================================|
+    *** | Operators (Function Properties)                                                |
+    *** |================================================================================|
+
+    op _`[Name`] : FunctionItem -> String .
+    op _`[Parameters`] : FunctionItem -> ParametersList .
+    op _`[ReturnType`] : FunctionItem -> LangType .
+    op _`[Code`] : FunctionItem -> BlockOfStatements .
+
+    *** |================================================================================|
+    *** | Operators (Lambda Properties)                                                  |
+    *** |================================================================================|
+
+    op _`[Id`] : LambdaItem -> Nat .
+    op _`[Parameters`] : LambdaItem -> ParametersList .
+    op _`[Code`] : LambdaItem -> BlockOfStatements .
+    op _`[Lambda`] : LambdaItem -> LambdaExpression .
+
+    *** |================================================================================|
+    *** | Operators (Parameter Properties)                                               |
+    *** |================================================================================|
+
+    op _`[Value`] : ParameterItem -> FunctionParameter .
+
+    *** |================================================================================|
+    *** | Operators (Constructor Properties)                                             |
+    *** |================================================================================|
+
+    op _`[IsStatic`] : ConstructorItem -> Bool .
+    op _`[Visibility`] : ConstructorItem -> MemberVisibility .
+    op _`[Parameters`] : ConstructorItem -> ParametersList .
+    op _`[Code`] : ConstructorItem -> BlockOfStatements .
+
+    *** |================================================================================|
+    *** | Operators (Destructor Properties)                                              |
+    *** |================================================================================|
+
+    op _`[Code`] : DestructorItem -> BlockOfStatements .
+
+    *** |================================================================================|
+    *** | Operators (Property Properties)                                                |
+    *** |================================================================================|
+
+    op _`[Name`] : PropertyItem -> String .
+    op _`[IsStatic`] : PropertyItem -> Bool .
+    op _`[Visibility`] : PropertyItem -> MemberVisibility .
+    op _`[Type`] : PropertyItem -> LangType .
+    op _`[WithBody`] : PropertyItem -> Bool .
+    op _`[WithSet`] : PropertyItem -> Bool .
+    op _`[GetCode`] : PropertyItem -> BlockOfStatements .
+    op _`[SetCode`] : PropertyItem -> BlockOfStatements .
+
+    *** |================================================================================|
+    *** | Operators (Field Properties)                                                   |
+    *** |================================================================================|
+
+    op _`[Name`] : FieldItem -> String .
+    op _`[IsStatic`] : FieldItem -> Bool .
+    op _`[Visibility`] : FieldItem -> MemberVisibility .
+    op _`[IsConst`] : FieldItem -> Bool .
+    op _`[Type`] : FieldItem -> LangType .
+
+    op _`[IsStatic:_`] : FieldItem Bool -> FieldItem .
+    op _`[Visibility:_`] : FieldItem MemberVisibility -> FieldItem .
+    op _`[IsConst:_`] : FieldItem Bool -> FieldItem .
+    op _`[Type:_`] : FieldItem LangType -> FieldItem .
+
+    *** |================================================================================|
+    *** | Operators (Method Properties)                                                  |
+    *** |================================================================================|
+
+    op _`[Name`] : MethodItem -> String .
+    op _`[IsStatic`] : MethodItem -> Bool .
+    op _`[Visibility`] : MethodItem -> MemberVisibility .
+    op _`[Parameters`] : MethodItem -> ParametersList .
+    op _`[ReturnType`] : MethodItem -> LangType .
+    op _`[Code`] : MethodItem -> BlockOfStatements .
+
+    *** |================================================================================|
+    *** | Variables                                                                      |
+    *** |================================================================================|
+
+    var N : Nat .
+    var S : String .
+
+    vars B B' B'' : Bool .
+
+    var FPA1 : FunctionParameter .
+
+    vars BOS1 BOS2 : BlockOfStatements .
+    vars LTP1 LTP2 : LangType .
+
+    var PRMLST : ParametersList .
+    var LMBEXP : LambdaExpression .
+    var PRMITM : ParameterItem .
+
+    vars ALSLST ALSLST' : AliasesList .
+    vars TPSLST TPSLST' : TypesList .
+    vars FNCLST FNCLST' : FunctionsList .
+    vars LMBLST LMBLST' : LambdasList .
+    vars FTHLST FTHLST' : FathersList .
+    vars CTRLST CTRLST' : ConstructorsList .
+    vars DTRITM DTRITM' : DestructorItem .
+    vars PRPLST PRPLST' : PropertiesList .
+    vars FLDLST FLDLST' : FieldsList .
+    vars MTHLST MTHLST' : MethodsList .
+    vars STRSEQ STRSEQ' : StartSequence .
+    vars BLDSEQ BLDSEQ' : BuildSequence .
+    vars MEMVIS MEMVIS' : MemberVisibility .
+
+    *** |================================================================================|
+    *** | Equations (Functions)                                                          |
+    *** |================================================================================|
+
+    eq programCreate = program(ainil, tinil, finil, linil, {}) .
+    eq typeItemCreate(LTP1, FTHLST) = type(LTP1, FTHLST, ctinil, dtinil, prinil, flinil, mtinil, {}, {}) .
+
+    *** |================================================================================|
+    *** | Equations (Program Properties)                                                 |
+    *** |================================================================================|
+
+    eq program(ALSLST, TPSLST, FNCLST, LMBLST, STRSEQ) [Alias] = ALSLST .
+    eq program(ALSLST, TPSLST, FNCLST, LMBLST, STRSEQ) [Types] = TPSLST .
+    eq program(ALSLST, TPSLST, FNCLST, LMBLST, STRSEQ) [Functions] = FNCLST .
+    eq program(ALSLST, TPSLST, FNCLST, LMBLST, STRSEQ) [Lambdas] = LMBLST .
+    eq program(ALSLST, TPSLST, FNCLST, LMBLST, STRSEQ) [Start] = STRSEQ .
+
+    eq program(ALSLST, TPSLST, FNCLST, LMBLST, STRSEQ) [Alias: ALSLST'] =
+       program(ALSLST', TPSLST, FNCLST, LMBLST, STRSEQ) .
+    eq program(ALSLST, TPSLST, FNCLST, LMBLST, STRSEQ) [Types: TPSLST'] =
+       program(ALSLST, TPSLST', FNCLST, LMBLST, STRSEQ) .
+    eq program(ALSLST, TPSLST, FNCLST, LMBLST, STRSEQ) [Functions: FNCLST'] =
+       program(ALSLST, TPSLST, FNCLST', LMBLST, STRSEQ) .
+    eq program(ALSLST, TPSLST, FNCLST, LMBLST, STRSEQ) [Lambdas: LMBLST'] =
+       program(ALSLST, TPSLST, FNCLST, LMBLST', STRSEQ) .
+    eq program(ALSLST, TPSLST, FNCLST, LMBLST, STRSEQ) [Start: STRSEQ'] =
+       program(ALSLST, TPSLST, FNCLST, LMBLST, STRSEQ') .
+
+    *** |================================================================================|
+    *** | Equations (Type Properties)                                                    |
+    *** |================================================================================|
+
+    eq type(LTP1, FTHLST, CTRLST, DTRITM, PRPLST, FLDLST, MTHLST, STRSEQ, BLDSEQ) [Name] = LTP1 .
+    eq type(LTP1, FTHLST, CTRLST, DTRITM, PRPLST, FLDLST, MTHLST, STRSEQ, BLDSEQ) [Fathers] = FTHLST .
+    eq type(LTP1, FTHLST, CTRLST, DTRITM, PRPLST, FLDLST, MTHLST, STRSEQ, BLDSEQ) [Constructors] = CTRLST .
+    eq type(LTP1, FTHLST, CTRLST, DTRITM, PRPLST, FLDLST, MTHLST, STRSEQ, BLDSEQ) [Destructor] = DTRITM .
+    eq type(LTP1, FTHLST, CTRLST, DTRITM, PRPLST, FLDLST, MTHLST, STRSEQ, BLDSEQ) [Properties] = PRPLST .
+    eq type(LTP1, FTHLST, CTRLST, DTRITM, PRPLST, FLDLST, MTHLST, STRSEQ, BLDSEQ) [Fields] = FLDLST .
+    eq type(LTP1, FTHLST, CTRLST, DTRITM, PRPLST, FLDLST, MTHLST, STRSEQ, BLDSEQ) [Methods] = MTHLST .
+    eq type(LTP1, FTHLST, CTRLST, DTRITM, PRPLST, FLDLST, MTHLST, STRSEQ, BLDSEQ) [Start] = STRSEQ .
+    eq type(LTP1, FTHLST, CTRLST, DTRITM, PRPLST, FLDLST, MTHLST, STRSEQ, BLDSEQ) [Build] = BLDSEQ .
+
+    eq type(LTP1, FTHLST, CTRLST, DTRITM, PRPLST, FLDLST, MTHLST, STRSEQ, BLDSEQ) [Name: LTP2] =
+       type(LTP2, FTHLST, CTRLST, DTRITM, PRPLST, FLDLST, MTHLST, STRSEQ, BLDSEQ) .
+    eq type(LTP1, FTHLST, CTRLST, DTRITM, PRPLST, FLDLST, MTHLST, STRSEQ, BLDSEQ) [Fathers: FTHLST'] =
+       type(LTP1, FTHLST', CTRLST, DTRITM, PRPLST, FLDLST, MTHLST, STRSEQ, BLDSEQ) .
+    eq type(LTP1, FTHLST, CTRLST, DTRITM, PRPLST, FLDLST, MTHLST, STRSEQ, BLDSEQ) [Constructors: CTRLST'] =
+       type(LTP1, FTHLST, CTRLST', DTRITM, PRPLST, FLDLST, MTHLST, STRSEQ, BLDSEQ) .
+    eq type(LTP1, FTHLST, CTRLST, DTRITM, PRPLST, FLDLST, MTHLST, STRSEQ, BLDSEQ) [Destructor: DTRITM'] =
+       type(LTP1, FTHLST, CTRLST, DTRITM', PRPLST, FLDLST, MTHLST, STRSEQ, BLDSEQ) .
+    eq type(LTP1, FTHLST, CTRLST, DTRITM, PRPLST, FLDLST, MTHLST, STRSEQ, BLDSEQ) [Properties: PRPLST'] =
+       type(LTP1, FTHLST, CTRLST, DTRITM, PRPLST', FLDLST, MTHLST, STRSEQ, BLDSEQ) .
+    eq type(LTP1, FTHLST, CTRLST, DTRITM, PRPLST, FLDLST, MTHLST, STRSEQ, BLDSEQ) [Fields: FLDLST'] =
+       type(LTP1, FTHLST, CTRLST, DTRITM, PRPLST, FLDLST', MTHLST, STRSEQ, BLDSEQ) .
+    eq type(LTP1, FTHLST, CTRLST, DTRITM, PRPLST, FLDLST, MTHLST, STRSEQ, BLDSEQ) [Methods: MTHLST'] =
+       type(LTP1, FTHLST, CTRLST, DTRITM, PRPLST, FLDLST, MTHLST', STRSEQ, BLDSEQ) .
+    eq type(LTP1, FTHLST, CTRLST, DTRITM, PRPLST, FLDLST, MTHLST, STRSEQ, BLDSEQ) [Start: STRSEQ'] =
+       type(LTP1, FTHLST, CTRLST, DTRITM, PRPLST, FLDLST, MTHLST, STRSEQ', BLDSEQ) .
+    eq type(LTP1, FTHLST, CTRLST, DTRITM, PRPLST, FLDLST, MTHLST, STRSEQ, BLDSEQ) [Build: BLDSEQ'] =
+       type(LTP1, FTHLST, CTRLST, DTRITM, PRPLST, FLDLST, MTHLST, STRSEQ, BLDSEQ') .
+
+    *** |================================================================================|
+    *** | Equations (Alias Properties)                                                   |
+    *** |================================================================================|
+
+    eq alias(LTP1, LTP2, B) [Name] = LTP1 .
+    eq alias(LTP1, LTP2, B) [Type] = LTP2 .
+    eq alias(LTP1, LTP2, B) [IsList] = B .
+
+    *** |================================================================================|
+    *** | Equations (Function Properties)                                                |
+    *** |================================================================================|
+
+    eq func(S, PRMLST, LTP1, BOS1) [Name] = S .
+    eq func(S, PRMLST, LTP1, BOS1) [Parameters] = PRMLST .
+    eq func(S, PRMLST, LTP1, BOS1) [ReturnType] = LTP1 .
+    eq func(S, PRMLST, LTP1, BOS1) [Code] = BOS1 .
+
+    *** |================================================================================|
+    *** | Equations (Lambda Properties)                                                  |
+    *** |================================================================================|
+
+    eq lambda(N, PRMLST, BOS1, LMBEXP) [Id] = N .
+    eq lambda(N, PRMLST, BOS1, LMBEXP) [Parameters] = PRMLST .
+    eq lambda(N, PRMLST, BOS1, LMBEXP) [Code] = BOS1 .
+    eq lambda(N, PRMLST, BOS1, LMBEXP) [Lambda] = LMBEXP .
+
+    *** |================================================================================|
+    *** | Equations (Parameter Properties)                                               |
+    *** |================================================================================|
+
+    eq param(FPA1) [Value] = FPA1 .
+
+    *** |================================================================================|
+    *** | Equations (Constructor Properties)                                             |
+    *** |================================================================================|
+
+    eq ctor(B, MEMVIS, PRMLST, BOS1) [IsStatic] = B .
+    eq ctor(B, MEMVIS, PRMLST, BOS1) [Visibility] = MEMVIS .
+    eq ctor(B, MEMVIS, PRMLST, BOS1) [Parameters] = PRMLST .
+    eq ctor(B, MEMVIS, PRMLST, BOS1) [Code] = BOS1 .
+
+    *** |================================================================================|
+    *** | Equations (Destructor Properties)                                              |
+    *** |================================================================================|
+
+    eq dtor(BOS1) [Code] = BOS1 .
+
+    *** |================================================================================|
+    *** | Equations (Property Properties)                                                |
+    *** |================================================================================|
+
+    eq prop(S, B, MEMVIS, LTP1, B', B'', BOS1, BOS2) [Name] = S .
+    eq prop(S, B, MEMVIS, LTP1, B', B'', BOS1, BOS2) [IsStatic] = B .
+    eq prop(S, B, MEMVIS, LTP1, B', B'', BOS1, BOS2) [Visibility] = MEMVIS .
+    eq prop(S, B, MEMVIS, LTP1, B', B'', BOS1, BOS2) [Type] = LTP1 .
+    eq prop(S, B, MEMVIS, LTP1, B', B'', BOS1, BOS2) [WithBody] = B' .
+    eq prop(S, B, MEMVIS, LTP1, B', B'', BOS1, BOS2) [WithSet] = B'' .
+    eq prop(S, B, MEMVIS, LTP1, B', B'', BOS1, BOS2) [GetCode] = BOS1 .
+    eq prop(S, B, MEMVIS, LTP1, B', B'', BOS1, BOS2) [SetCode] = BOS2 .
+
+    *** |================================================================================|
+    *** | Equations (Field Properties)                                                   |
+    *** |================================================================================|
+
+    eq field(S, B, MEMVIS, B', LTP1) [Name] = S .
+    eq field(S, B, MEMVIS, B', LTP1) [IsStatic] = B .
+    eq field(S, B, MEMVIS, B', LTP1) [Visibility] = MEMVIS .
+    eq field(S, B, MEMVIS, B', LTP1) [IsConst] = B' .
+    eq field(S, B, MEMVIS, B', LTP1) [Type] = LTP1 .
+
+    eq field(S, B, MEMVIS, B', LTP1) [IsStatic: B''] = field(S, B'', MEMVIS, B', LTP1) .
+    eq field(S, B, MEMVIS, B', LTP1) [Visibility: MEMVIS'] = field(S, B, MEMVIS', B', LTP1) .
+    eq field(S, B, MEMVIS, B', LTP1) [IsConst: B''] = field(S, B, MEMVIS, B'', LTP1) .
+    eq field(S, B, MEMVIS, B', LTP1) [Type: LTP2] = field(S, B, MEMVIS, B', LTP2) .
+
+    *** |================================================================================|
+    *** | Equations (Method Properties)                                                  |
+    *** |================================================================================|
+
+    eq method(S, B, MEMVIS, PRMLST, LTP1, BOS1) [Name] = S .
+    eq method(S, B, MEMVIS, PRMLST, LTP1, BOS1) [IsStatic] = B .
+    eq method(S, B, MEMVIS, PRMLST, LTP1, BOS1) [Visibility] = MEMVIS .
+    eq method(S, B, MEMVIS, PRMLST, LTP1, BOS1) [Parameters] = PRMLST .
+    eq method(S, B, MEMVIS, PRMLST, LTP1, BOS1) [ReturnType] = LTP1 .
+    eq method(S, B, MEMVIS, PRMLST, LTP1, BOS1) [Code] = BOS1 .
+
+endfm

@@ -1,0 +1,184 @@
+--- **************************************************************************************
+--- * Anubis Programming Language
+--- * Copyright (c) 2014-2015 Gorka Suárez García
+--- *
+--- * Permission is hereby granted, free of charge, to any person obtaining a copy
+--- * of this software and associated documentation files (the "Software"), to deal
+--- * in the Software without restriction, including without limitation the rights
+--- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+--- * copies of the Software, and to permit persons to whom the Software is
+--- * furnished to do so, subject to the following conditions:
+--- *
+--- * The above copyright notice and this permission notice shall be included in
+--- * all copies or substantial portions of the Software.
+--- *
+--- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+--- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+--- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+--- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+--- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+--- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+--- * DEALINGS IN THE SOFTWARE.
+--- **************************************************************************************
+
+--- |************************************************************************************|
+--- | ANUBIS-SYNTAX-STATEMENT: This module contains the syntax of the statements.        |
+--- |************************************************************************************|
+
+fmod ANUBIS-SYNTAX-STATEMENT is
+    protecting ANUBIS-SYNTAX-LITEXPR .
+
+    *** |================================================================================|
+    *** | Sorts                                                                          |
+    *** |================================================================================|
+
+    sorts BlockOrStatement BlockOfStatements Statements Statement .
+    sorts ControlCondition ControlStatement IfStatement SwitchStatement SwitchControlVariable
+          BlockOfCaseStatements CaseStatements CaseStatement CaseValue DefaultStatement
+          WhileStatement DoWhileStatement RepeatUntilStatement ForStatement ForControlParameters
+          ForEachStatement ForEachControlVariable TryCatchStatement CatchControlVariable
+          ThrowStatement BreakStatement ContinueStatement YieldStatement ReturnStatement
+          ConstantStatement VariableStatement .
+
+    *** |================================================================================|
+    *** | Subsorts                                                                       |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // Code has declarations and inside functions we'll have statements, where you
+    --- // can have a single statement or a block of them. Control statements are a
+    --- // special type of statement, used to give behavior to our programs. Finally,
+    --- // we also need a type to have a single statement or a block of them to
+    --- // simplify the definitions inside the control statements.
+    --- //--------------------------------------------------------------------------------
+
+    subsort Statement BlockOfStatements < Statements BlockOrStatement .
+    subsort ControlStatement < Statement .
+    subsort IfStatement SwitchStatement WhileStatement DoWhileStatement
+            RepeatUntilStatement ForStatement ForEachStatement TryCatchStatement
+            ThrowStatement BreakStatement ContinueStatement YieldStatement
+            ReturnStatement ConstantStatement VariableStatement < ControlStatement .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Here we'll configure the support types to the control statements.
+    --- //--------------------------------------------------------------------------------
+
+    subsort CallW1BoolParamExpression < ControlCondition .
+    subsort CallW1VarParamExpression < SwitchControlVariable .
+    subsort CharLiteral StringLiteral IntegerLiteral HexadecimalLiteral < CaseValue .
+    subsort CaseStatement DefaultStatement < CaseStatements .
+    subsort CallW1VMEParamExpression CallW1VarParamExpression < CatchControlVariable .
+
+    *** |================================================================================|
+    *** | Operators (Statements)                                                         |
+    *** |================================================================================|
+
+    op ;; : -> Statement [ctor format (oi on)] .
+    op _; : Expression -> Statement [ctor prec 54 format (oi o on)] .
+    op __ : Statements Statements -> Statements [ctor prec 60 gather(e E)] .
+    op `{`} : -> BlockOfStatements [ctor prec 50 format (oi nis on)] .
+    op `{_`} : Statements -> BlockOfStatements [ctor prec 50 format (oi on+++s o---is on)] .
+
+    *** |================================================================================|
+    *** | Operators (Control)                                                            |
+    *** |================================================================================|
+
+    op break ; : -> BreakStatement [ctor prec 56 format (oi o on)] .
+    op continue ; : -> ContinueStatement [ctor prec 56 format (oi o on)] .
+    op return_ ; : ValueExpression -> ReturnStatement [ctor prec 56 format (oi o o on)] .
+    op yield_ ; : ValueExpression -> YieldStatement [ctor prec 56 format (oi o o on)] .
+    op throw_ ; : ValueExpression -> ThrowStatement [ctor prec 56 format (oi o o on)] .
+
+    *** |================================================================================|
+    *** | Operators (Data)                                                               |
+    *** |================================================================================|
+
+    op const_; : MatchExpression -> ConstantStatement [ctor prec 56 format (oi o o on)] .
+    op const_; : SequenceOfMatchExpressions -> ConstantStatement [ctor prec 56 format (oi o o on)] .
+    op var_; : MatchExpression -> VariableStatement [ctor prec 56 format (oi o o on)] .
+    op var_; : SequenceOfMatchExpressions -> VariableStatement [ctor prec 56 format (oi o o on)] .
+
+    *** |================================================================================|
+    *** | Operators (if)                                                                 |
+    *** |================================================================================|
+
+    op if__ : ControlCondition BlockOrStatement -> IfStatement
+        [ctor prec 58 format (oi o on+++s o---)] .
+    op if__else_ : ControlCondition BlockOrStatement BlockOrStatement -> IfStatement
+        [ctor prec 58 format (oi o on+++s o---is on+++s o---)] .
+
+    *** |================================================================================|
+    *** | Operators (switch)                                                             |
+    *** |================================================================================|
+
+    op case_:_ : CaseValue Statements -> CaseStatement
+        [ctor prec 64 format (oi o o on+++s o---)] .
+    op default :_ : Statements -> DefaultStatement
+        [ctor prec 64 format (oi o on+++s o---)] .
+    op default:_ : Statements -> DefaultStatement
+        [ctor prec 64 format (oi on+++s o---)] .
+
+    op __ : CaseStatements CaseStatements -> CaseStatements [ctor prec 70 gather(e E)] .
+    op `{_`} : CaseStatements -> BlockOfCaseStatements [ctor prec 52 format (oi on+++s o---is on)] .
+
+    op switch__ : SwitchControlVariable BlockOfCaseStatements -> SwitchStatement
+        [ctor prec 58 format (oi o on+++s o---)] .
+
+    *** |================================================================================|
+    *** | Operators (while)                                                              |
+    *** |================================================================================|
+
+    op while__ : ControlCondition BlockOrStatement -> WhileStatement
+        [ctor prec 58 format (oi o on+++s o---)] .
+
+    *** |================================================================================|
+    *** | Operators (do-while)                                                           |
+    *** |================================================================================|
+
+    op do_while_; : BlockOfStatements ControlCondition -> DoWhileStatement
+        [ctor prec 58 format (oi on+++s o---is o o on)] .
+
+    *** |================================================================================|
+    *** | Operators (repeat-until)                                                       |
+    *** |================================================================================|
+
+    op repeat_until_; : BlockOfStatements ControlCondition -> RepeatUntilStatement
+        [ctor prec 58 format (oi on+++s o---is o o on)] .
+
+    *** |================================================================================|
+    *** | Operators (for)                                                                |
+    *** |================================================================================|
+
+    op `(_;_;_`) : Expression BooleanExpression Expression -> ForControlParameters
+        [ctor prec 57 format (o o o o o o o o)] .
+    op `(var_;_;_`) : MatchExpression BooleanExpression Expression ->
+        ForControlParameters [ctor prec 57 format (o o o o o o o o o)] .
+    op `(var_;_;_`) : SequenceOfMatchExpressions BooleanExpression Expression ->
+        ForControlParameters [ctor prec 57 format (o o o o o o o o o)] .
+    op for__ : ForControlParameters BlockOrStatement -> ForStatement
+        [ctor prec 58 format (oi o on+++s o---)] .
+
+    *** |================================================================================|
+    *** | Operators (for-each)                                                           |
+    *** |================================================================================|
+
+    op `(_:_`) : VOTMatchExpression ListExpression -> ForEachControlVariable
+        [ctor prec 57 format (o o o o o o)] .
+    op `(var_:_`) : VOTMatchExpression ListExpression -> ForEachControlVariable
+        [ctor prec 57 format (o o o o o o o)] .
+    op for__ : ForEachControlVariable BlockOrStatement -> ForEachStatement
+        [ctor prec 58 format (oi o on+++s o---)] .
+
+    *** |================================================================================|
+    *** | Operators (try-catch)                                                          |
+    *** |================================================================================|
+
+    op `(...`) : -> CatchControlVariable [ctor] .
+    op `(var_`) : VOTMatchExpression -> CatchControlVariable [ctor] .
+    op try_catch__ : BlockOrStatement CatchControlVariable BlockOrStatement ->
+        TryCatchStatement [ctor prec 58 format (oi on+++s o---is o on+++s o---)] .
+    op try_catch__finally_ : BlockOrStatement CatchControlVariable BlockOrStatement
+        BlockOrStatement -> TryCatchStatement [ctor prec 58
+        format (oi on+++s o---is o on+++s o---is on+++s o---)] .
+
+endfm

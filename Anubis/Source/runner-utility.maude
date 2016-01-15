@@ -1,0 +1,431 @@
+--- **************************************************************************************
+--- * Anubis Programming Language
+--- * Copyright (c) 2014-2015 Gorka Suárez García
+--- *
+--- * Permission is hereby granted, free of charge, to any person obtaining a copy
+--- * of this software and associated documentation files (the "Software"), to deal
+--- * in the Software without restriction, including without limitation the rights
+--- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+--- * copies of the Software, and to permit persons to whom the Software is
+--- * furnished to do so, subject to the following conditions:
+--- *
+--- * The above copyright notice and this permission notice shall be included in
+--- * all copies or substantial portions of the Software.
+--- *
+--- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+--- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+--- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+--- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+--- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+--- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+--- * DEALINGS IN THE SOFTWARE.
+--- **************************************************************************************
+
+--- |************************************************************************************|
+--- | ANUBIS-RUNNER-UTILITY: This module contains utility operators of the runner.       |
+--- |************************************************************************************|
+
+fmod ANUBIS-RUNNER-UTILITY is
+    protecting ANUBIS-APPLICATION .
+    protecting ANUBIS-RUNNER-BASE .
+
+    *** |================================================================================|
+    *** | Operators                                                                      |
+    *** |================================================================================|
+
+    op killedByDeath : Application String -> Application .
+    op addOutputLine : Application String -> Application .
+
+    op maudePrint : String -> String .
+    op maudePrint' : String String -> String .
+    op maudePrint' : String StringPair -> String .
+
+    *** |================================================================================|
+    *** | Operators (Errors)                                                             |
+    *** |================================================================================|
+
+    op evalError : Application String String -> EvalResult .
+    op evalSymbolNotFoundError : Application String String -> EvalResult .
+    op evalFunctionNotFoundError : Application String -> EvalResult .
+    op evalInvalidAmbitDataError : Application String -> EvalResult .
+    op evalInvalidFunctionCallError : Application String -> EvalResult .
+    op evalInvalidMethodCallError : Application String -> EvalResult .
+    op evalFuncNotImplError : Application String String -> EvalResult .
+    op evalExprNotSupportedError : Application String -> EvalResult .
+    op evalInvalidReturnValueError : Application String -> EvalResult .
+
+    *** |================================================================================|
+    *** | Operators (Code)                                                               |
+    *** |================================================================================|
+
+    op getStatements : Instructions -> Statements .
+    op firstStatement : Instructions -> BlockOrStatement .
+    op tailStatements : Instructions -> Statements .
+
+    op emptyCode : Statements -> Bool .
+    op noMoreCode : Application -> Bool .
+
+    op finishedApp : Application -> Bool .
+    op finishedContext : Application -> Bool .
+    op finishedContext : Context -> Bool .
+
+    *** |================================================================================|
+    *** | Operators (Program)                                                            |
+    *** |================================================================================|
+
+    op checkAliases : AliasesList String -> String .
+
+    op getType : TypesList String -> TypeItem .
+    op getType : Application String -> TypeItem .
+    op getFunc : FunctionsList String -> FunctionItem .
+    op getFunc : Application String -> FunctionItem .
+
+    op findType : Application String -> String .
+    op findFunc : Application String -> String .
+
+    *** |================================================================================|
+    *** | Operators (Data & Values)                                                      |
+    *** |================================================================================|
+
+    op getMemData : Application Nat -> Value .
+    op getValue : Value -> Value .
+    op getValues : Value -> Values .
+    op joinValues : Value Value -> SequenceValue .
+
+    op fromValueToString : Value -> String .
+    op fromValuesToString : String Values -> String .
+
+    op isVoidValue : Value -> Bool .
+    op isBoolValue : Value -> Bool .
+    op isCharValue : Value -> Bool .
+    op isIntegerValue : Value -> Bool .
+    op isRealValue : Value -> Bool .
+    op isNumericValue : Value -> Bool .
+    op isFunctionValue : Value -> Bool .
+    op isTupleValue : Value -> Bool .
+    op isListValue : Value -> Bool .
+    op isStringValue : Value -> Bool .
+
+    op isObjectValue : Application String Value -> Bool .
+    op doesItFit : Application String Value -> Bool .
+
+    *** |================================================================================|
+    *** | Operators (Calls)                                                              |
+    *** |================================================================================|
+
+    *** |================================================================================|
+    *** | Operators (Built-In)                                                           |
+    *** |================================================================================|
+
+    op toReservedType : String -> String .
+    op isBuiltInIdentifier : String -> Bool .
+
+    op makePrintCall : Application Value -> EvalResult .
+
+    *** |================================================================================|
+    *** | Operators (Get & Set)                                                          |
+    *** |================================================================================|
+
+    op _`[ContextMode`] : Application -> ContextMode .
+    op _`[ContextMode:_`] : Application ContextMode -> Application .
+
+    op _`[RegPtr`] : Application -> Value .
+    op _`[RegPtr:_`] : Application Value -> Application .
+
+    op _`[RegRet`] : Application -> Value .
+    op _`[RegRet:_`] : Application Value -> Application .
+
+    *** |================================================================================|
+    *** | Variables                                                                      |
+    *** |================================================================================|
+
+    var B : Bool .
+    var F : Float .
+    var I : Int .
+
+    vars N N' : Nat .
+
+    var PRGM : Program .
+    var MEMO : Memory .
+    var AMBT : Ambit .
+
+    var ALSL : AliasesList .
+    var TYPI : TypeItem .
+    var TYPL : TypesList .
+    var FNCI : FunctionItem .
+    var FNCL : FunctionsList .
+    var LMBL : LambdasList .
+    var CTRL : ConstructorsList .
+    var DTRI : DestructorItem .
+    var PRPL : PropertiesList .
+    var FLDL : FieldsList .
+    var MTHL : MethodsList .
+    var PRML : ParametersList .
+    var FTHL : FathersList .
+    var SSEQ : StartSequence .
+    var BSEQ : BuildSequence .
+
+    var APP0 : Application .
+    var INS0 : Instructions .
+    var CTS0 : ContextStack .
+    var CNMD : ContextMode .
+    var VLS0 : Values .
+    var FVLS : FieldValues .
+    var BVLS : BasicValues .
+    var PVAL : PointerValue .
+    var ITVL : ItemValue .
+    var STS0 : Statements .
+    var BOFS : BlockOfStatements .
+
+    vars VAL0 VAL1 : Value .
+    vars CNT0 CNT1 : Context .
+    vars REG0 REG1 : Registers .
+    vars STR0 STR1 STR2 : String .
+
+    *** |================================================================================|
+    *** | Equations                                                                      |
+    *** |================================================================================|
+
+    eq killedByDeath(app(PRGM, MEMO, AMBT, CNT0, CTS0, STR0), STR1) =
+        app(pnil, mcnil, adnil, ctnil, ctnil, STR0 + STR1 + "\n")
+        [print "ERROR: " STR1] .
+
+    eq addOutputLine(APP0, STR0) = APP0 [Output: ((APP0 [Output]) + STR0 + "\n")] .
+
+    eq maudePrint(STR0) = maudePrint'(STR0, STR0) .
+    eq maudePrint'(STR0, "") = STR0 .
+    eq maudePrint'(STR0, STR1) = maudePrint'(STR0, split(STR1, "\n")) [owise] .
+    eq maudePrint'(STR0, spair(STR1, STR2)) = maudePrint'(STR0, STR2) [print "[COUT] " STR1] .
+
+    *** |================================================================================|
+    *** | Equations (Errors)                                                             |
+    *** |================================================================================|
+
+    eq evalError(APP0, STR0, STR1) = evr(killedByDeath(APP0, "[" + STR0 + "] " + STR1), void) .
+    eq evalSymbolNotFoundError(APP0, STR0, STR1) = evalError(APP0, STR0, "Symbol " + STR1 + " not found.") .
+    eq evalFunctionNotFoundError(APP0, STR0) = evalError(APP0, STR0, "Function not found.") .
+    eq evalInvalidAmbitDataError(APP0, STR0) = evalError(APP0, STR0, "Invalid ambit data.") .
+    eq evalInvalidFunctionCallError(APP0, STR0) = evalError(APP0, STR0, "Invalid function call.") .
+    eq evalInvalidMethodCallError(APP0, STR0) = evalError(APP0, STR0, "Invalid method call.") .
+    eq evalFuncNotImplError(APP0, STR0, STR1) = evalError(APP0, STR0, "Function " + STR1 + " not implemented.") .
+    eq evalExprNotSupportedError(APP0, STR0) = evalError(APP0, STR0, "Expression not supported.") .
+    eq evalInvalidReturnValueError(APP0, STR0) = evalError(APP0, STR0, "Invalid returned value.") .
+
+    *** |================================================================================|
+    *** | Equations (Code)                                                               |
+    *** |================================================================================|
+
+    eq getStatements(innil) = ;; .
+    eq getStatements(INS0) = INS0[Statements] [owise] .
+
+    eq firstStatement(innil) = ;; .
+    eq firstStatement(INS0) = firstStatement(INS0[Statements]) [owise] .
+
+    eq tailStatements(innil) = ;; .
+    eq tailStatements(INS0) = tailStatements(INS0[Statements]) [owise] .
+
+    eq emptyCode(;;) = true .
+    eq emptyCode({}) = true .
+    eq emptyCode(STS0) = false [owise] .
+
+    eq noMoreCode(APP0) = emptyCode(((APP0 [Context]) [Instructions]) [Statements]) .
+
+    eq finishedApp(APP0) = finishedContext(APP0) and ((APP0 [ContextStack]) == ctnil) .
+
+    eq finishedContext(APP0) = finishedContext(APP0 [Context]) .
+
+    eq finishedContext(ctnil) = true .
+    eq finishedContext(CNT0) = emptyCode(getStatements(CNT0 [Instructions])) and
+                               ((CNT0 [InstructionsStack]) == innil) [owise] .
+
+    *** |================================================================================|
+    *** | Equations (Program)                                                            |
+    *** |================================================================================|
+
+    eq checkAliases(alias(STR0, STR1, false) ALSL, STR0) = checkAliases(ALSL, STR1) .
+    eq checkAliases(alias(STR0, STR1, true) ALSL, STR0) = "List " + checkAliases(ALSL, STR1) .
+    eq checkAliases(ALSL, STR0) = STR0 [owise] .
+
+    eq getType(type(STR0, FTHL, CTRL, DTRI, PRPL, FLDL, MTHL, SSEQ, BSEQ) TYPL, STR0) =
+        type(STR0, FTHL, CTRL, DTRI, PRPL, FLDL, MTHL, SSEQ, BSEQ) .
+    eq getType(TYPL, STR0) = tinil [owise] .
+    eq getType(APP0, STR0) = getType((APP0 [Program]) [Types], STR0) .
+
+    eq getFunc(func(STR0, PRML, STR1, BOFS) FNCL, STR0) = func(STR0, PRML, STR1, BOFS) .
+    eq getFunc(FNCL, STR0) = finil [owise] .
+    eq getFunc(APP0, STR0) = getFunc((APP0 [Program]) [Functions], STR0) .
+
+    ceq findType(APP0, STR0) =
+        if TYPI == tinil then "" else STR1 fi
+        if PRGM := APP0 [Program]           /\
+           ALSL := PRGM [Alias]             /\
+           TYPL := PRGM [Types]             /\
+           STR1 := checkAliases(ALSL, STR0) /\
+           TYPI := getType(TYPL, STR1)       .
+
+    ceq findFunc(APP0, STR0) =
+        if getFunc(FNCL, STR0) == finil then "" else STR0 fi
+        if PRGM := APP0 [Program]      /\
+           FNCL := PRGM [Functions]    /\
+           FNCI := getFunc(FNCL, STR0)  .
+
+    *** |================================================================================|
+    *** | Equations (Data & Values)                                                      |
+    *** |================================================================================|
+
+    eq getMemData(APP0, N) = memGetVal(N, APP0 [Memory]) .
+
+    eq getValue(ival(N, B, STR0, VAL0, STR1)) = VAL0 .
+    eq getValue(ival(STR0, B, STR1, VAL0, STR2)) = VAL0 .
+    eq getValue(VAL0) = VAL0 [owise] .
+
+    eq getValues(sval(VLS0)) = VLS0 .
+    eq getValues(VAL0) = VAL0 [owise] .
+
+    eq joinValues(VAL0, VAL1) = sval(getValues(VAL0) getValues(VAL1)) .
+
+    eq fromValuesToString(STR0, void) = "" .
+    ceq fromValuesToString(STR0, VAL0 VLS0) =
+        if STR2 == "" then STR1 else STR1 + STR0 + STR2 fi
+        if VAL0 =/= void                          /\
+           STR1 := fromValueToString(VAL0)        /\
+           STR2 := fromValuesToString(STR0, VLS0)  .
+
+    eq fromValueToString(obj(N, STR0, odt(FVLS))) = "Object$" + STR0 .
+    ceq fromValueToString(obj(N, STR0, odt(BVLS))) = "[" + STR1 + "]"
+        if startsWith(STR0, listType) /\ STR1 := fromValuesToString(", ", BVLS) .
+    ceq fromValueToString(obj(N, STR0, odt(BVLS))) = "<" + STR1 + ">"
+        if STR0 == tupleType /\ STR1 := fromValuesToString(", ", BVLS) .
+    ceq fromValueToString(obj(N, STR0, odt(STR1))) = STR1
+        if STR0 == stringType .
+    ceq fromValueToString(obj(N, STR0, odt(STR1))) = "Function$" + STR1
+        if STR0 == functionType .
+    ceq fromValueToString(obj(N, STR0, odt(PVAL, STR1))) = "Method$" + STR1
+        if STR0 == functionType .
+    ceq fromValueToString(obj(N, STR0, odt(N', BVLS))) = "Lambda$" + intToIntStr(N')
+        if STR0 == functionType .
+
+    eq fromValueToString(bsval(true)) = "true" .
+    eq fromValueToString(bsval(false)) = "false" .
+    eq fromValueToString(csval(STR0)) = STR0 .
+    eq fromValueToString(isval(I)) = intToIntStr(I) .
+    eq fromValueToString(rsval(F)) = floatToStr(F) .
+    eq fromValueToString(psval(N)) = intToIntStr(N) .
+
+    eq fromValueToString(bdval(true)) = "true" .
+    eq fromValueToString(bdval(false)) = "false" .
+    eq fromValueToString(cdval(STR0)) = STR0 .
+    eq fromValueToString(idval(I)) = intToIntStr(I) .
+    eq fromValueToString(rdval(F)) = floatToStr(F) .
+    eq fromValueToString(pdval(N)) = intToIntStr(N) .
+
+    eq fromValueToString(ival(N, B, STR0, VAL0, STR1)) = fromValueToString(VAL0) .
+    eq fromValueToString(ival(STR0, B, STR1, VAL0, STR2)) = fromValueToString(VAL0) .
+    eq fromValueToString(tval(STR0)) = STR0 .
+    eq fromValueToString(zval(STR0)) = STR0 .
+    eq fromValueToString(sval(VLS0)) = fromValuesToString(" ", VLS0) .
+    eq fromValueToString(VAL0) = "" [owise] .
+
+    eq isVoidValue(void) = true .
+    ceq isVoidValue(VAL0) = (VAL1 :: VoidValue) if VAL1 := getValue(VAL0) [owise] .
+
+    ceq isBoolValue(VAL0) = (VAL1 :: BoolValue) if VAL1 := getValue(VAL0) .
+    ceq isCharValue(VAL0) = (VAL1 :: CharValue) if VAL1 := getValue(VAL0) .
+    ceq isIntegerValue(VAL0) = (VAL1 :: IntegerValue) if VAL1 := getValue(VAL0) .
+    ceq isRealValue(VAL0) = (VAL1 :: RealValue) if VAL1 := getValue(VAL0) .
+    eq isNumericValue(VAL0) = isIntegerValue(VAL0) or isRealValue(VAL0) .
+
+    eq isFunctionValue(obj(N, STR0, odt(STR1))) = STR0 == functionType .
+    eq isFunctionValue(obj(N, STR0, odt(PVAL, STR1))) = STR0 == functionType .
+    eq isFunctionValue(obj(N, STR0, odt(N', BVLS))) = STR0 == functionType .
+    eq isFunctionValue(ITVL) = isFunctionValue(getValue(ITVL)) .
+    eq isFunctionValue(VAL0) = false [owise] .
+
+    eq isTupleValue(obj(N, STR0, odt(BVLS))) = STR0 == tupleType .
+    eq isTupleValue(ITVL) = isTupleValue(getValue(ITVL)) .
+    eq isTupleValue(VAL0) = false [owise] .
+
+    eq isListValue(obj(N, STR0, odt(BVLS))) = startsWith(STR0, listType) .
+    eq isListValue(ITVL) = isListValue(getValue(ITVL)) .
+    eq isListValue(VAL0) = false [owise] .
+
+    eq isStringValue(obj(N, STR0, odt(STR1))) = STR0 == stringType .
+    eq isStringValue(ITVL) = isStringValue(getValue(ITVL)) .
+    eq isStringValue(VAL0) = false [owise] .
+
+    eq isObjectValue(APP0, STR0, obj(N, STR0, odt(FVLS))) = true .
+    --- TODO: Check object hierarchy...
+    ---eq isObjectValue(APP0, STR0, obj(N, STR1, odt(FVLS))) = .
+    --- ...
+    eq isObjectValue(APP0, STR0, VAL0) = false [owise] .
+
+    ceq doesItFit(APP0, STR0, VAL0) = isBoolValue(VAL0)
+        if STR0 == boolType .
+    ceq doesItFit(APP0, STR0, VAL0) = isCharValue(VAL0)
+        if STR0 == charType .
+    ceq doesItFit(APP0, STR0, VAL0) = isIntegerValue(VAL0)
+        if STR0 == integerType .
+    ceq doesItFit(APP0, STR0, VAL0) = isNumericValue(VAL0)
+        if STR0 == realType .
+    ceq doesItFit(APP0, STR0, VAL0) = isFunctionValue(VAL0)
+        if STR0 == functionType .
+    ceq doesItFit(APP0, STR0, VAL0) = isTupleValue(VAL0)
+        if STR0 == tupleType .
+    ceq doesItFit(APP0, STR0, VAL0) = isListValue(VAL0) or isStringValue(VAL0)
+        if STR0 == listType .
+    ceq doesItFit(APP0, STR0, VAL0) = isStringValue(VAL0)
+        if STR0 == stringType .
+    ceq doesItFit(APP0, STR0, VAL0) = true
+        if STR0 == objectType .
+    ceq doesItFit(APP0, STR0, VAL0) = true
+        if STR0 == dynamicType .
+    eq doesItFit(APP0, STR0, VAL0) = isObjectValue(APP0, STR0, VAL0) [owise] .
+
+    *** |================================================================================|
+    *** | Equations (Calls)                                                              |
+    *** |================================================================================|
+
+    *** |================================================================================|
+    *** | Equations (Built-In)                                                           |
+    *** |================================================================================|
+
+    eq toReservedType("bool") = "Bool" .
+    eq toReservedType("char") = "Char" .
+    eq toReservedType("integer") = "Integer" .
+    eq toReservedType("real") = "Real" .
+    eq toReservedType(STR0) = STR0 [owise] .
+
+    eq isBuiltInIdentifier("print") = true .
+    eq isBuiltInIdentifier(STR0) = false [owise] .
+
+    eq makePrintCall(APP0, VAL0) = evr(addOutputLine(APP0, fromValueToString(VAL0)), void) .
+
+    *** |================================================================================|
+    *** | Equations (Get & Set)                                                          |
+    *** |================================================================================|
+
+    eq APP0 [ContextMode] = ((APP0 [Context]) [Registers]) [Mode] .
+
+    ceq APP0 [ContextMode: CNMD] = APP0 [Context: CNT1]
+        if CNT0 := APP0 [Context]         /\
+           REG0 := CNT0 [Registers]       /\
+           REG1 := REG0 [Mode: CNMD]      /\
+           CNT1 := CNT0 [Registers: REG1]  .
+
+    eq APP0 [RegPtr] = ((APP0 [Context]) [Registers]) [Ptr] .
+
+    ceq APP0 [RegPtr: VAL0] = APP0 [Context: CNT1]
+        if CNT0 := APP0 [Context]         /\
+           REG0 := CNT0 [Registers]       /\
+           REG1 := REG0 [Ptr: VAL0]       /\
+           CNT1 := CNT0 [Registers: REG1]  .
+
+    eq APP0 [RegRet] = ((APP0 [Context]) [Registers]) [Ret] .
+
+    ceq APP0 [RegRet: VAL0] = APP0 [Context: CNT1]
+        if CNT0 := APP0 [Context]         /\
+           REG0 := CNT0 [Registers]       /\
+           REG1 := REG0 [Ret: VAL0]       /\
+           CNT1 := CNT0 [Registers: REG1]  .
+
+endfm

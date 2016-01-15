@@ -1,0 +1,241 @@
+--- **************************************************************************************
+--- * Anubis Programming Language
+--- * Copyright (c) 2014-2015 Gorka Suárez García
+--- *
+--- * Permission is hereby granted, free of charge, to any person obtaining a copy
+--- * of this software and associated documentation files (the "Software"), to deal
+--- * in the Software without restriction, including without limitation the rights
+--- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+--- * copies of the Software, and to permit persons to whom the Software is
+--- * furnished to do so, subject to the following conditions:
+--- *
+--- * The above copyright notice and this permission notice shall be included in
+--- * all copies or substantial portions of the Software.
+--- *
+--- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+--- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+--- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+--- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+--- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+--- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+--- * DEALINGS IN THE SOFTWARE.
+--- **************************************************************************************
+
+--- |************************************************************************************|
+--- | ANUBIS-UTILITY-CONVERSION: This module contains utility operators.                 |
+--- |************************************************************************************|
+
+fmod ANUBIS-UTILITY-CONVERSION is
+    protecting ANUBIS-UTILITY-TYPES .
+    protecting ANUBIS-SYNTAX-LITERAL .
+
+    *** |================================================================================|
+    *** | Operators (Hexadecimal)                                                        |
+    *** |================================================================================|
+
+    op fillHexCode : String Nat -> String .
+    op parseHexCode : String -> String .
+
+    *** |================================================================================|
+    *** | Operators (Literal -> Bool)                                                    |
+    *** |================================================================================|
+
+    op toBool : NullLiteral -> Bool .
+    op toBool : BoolLiteral -> Bool .
+    op toBool : CharLiteral -> Bool .
+    op toBool : StringLiteral -> Bool .
+    op toBool : IntegerLiteral -> Bool .
+    op toBool : HexadecimalLiteral -> Bool .
+    op toBool : RealLiteral -> Bool .
+    op toBool : Qid -> Bool .
+
+    *** |================================================================================|
+    *** | Operators (Literal -> Int)                                                     |
+    *** |================================================================================|
+
+    op toInt : NullLiteral -> Int .
+    op toInt : BoolLiteral -> Int .
+    op toInt : CharLiteral -> Int .
+    op toInt : StringLiteral -> Int .
+    op toInt : IntegerLiteral -> Int .
+    op toInt : HexadecimalLiteral -> Int .
+    op toInt : RealLiteral -> Int .
+    op toInt : Qid -> Int .
+
+    *** |================================================================================|
+    *** | Operators (Literal -> Float)                                                   |
+    *** |================================================================================|
+
+    op toFloat : NullLiteral -> Float .
+    op toFloat : BoolLiteral -> Float .
+    op toFloat : CharLiteral -> Float .
+    op toFloat : StringLiteral -> Float .
+    op toFloat : IntegerLiteral -> Float .
+    op toFloat : HexadecimalLiteral -> Float .
+    op toFloat : RealLiteral -> Float .
+    op toFloat : Qid -> Float .
+
+    *** |================================================================================|
+    *** | Operators (Literal -> String)                                                  |
+    *** |================================================================================|
+
+    op toString : NullLiteral -> String .
+    op toString : BoolLiteral -> String .
+    op toString : CharLiteral -> String .
+    op toString : StringLiteral -> String .
+    op toString : IntegerLiteral -> String .
+    op toString : HexadecimalLiteral -> String .
+    op toString : RealLiteral -> String .
+    op toString : Qid -> String .
+
+    *** |================================================================================|
+    *** | Operators (Maude -> Literal)                                                   |
+    *** |================================================================================|
+
+    op toLiteral : Bool -> Literal .
+    op toLiteral : Char -> Literal .
+    op toLiteral : String -> Literal .
+    op toLiteral : Int -> Literal .
+    op toLiteral : Float -> Literal .
+    op toHexLiteral : Int -> Literal .
+
+    *** |================================================================================|
+    *** | Variables                                                                      |
+    *** |================================================================================|
+
+    var N : Nat .
+    var I : Int .
+    var F : Float .
+    var C : Char .
+    var S : String .
+    var ID : Qid .
+    var RNL : NullLiteral .
+    var RBL : BoolLiteral .
+    var RCL : CharLiteral .
+    var RSL : StringLiteral .
+    var RIL : IntegerLiteral .
+    var RHL : HexadecimalLiteral .
+    var RRL : RealLiteral .
+
+    *** |================================================================================|
+    *** | Equations (Hexadecimal)                                                        |
+    *** |================================================================================|
+
+    eq fillHexCode(S, N) = if length(S) == N then S else fillHexCode("0" + S, N) fi .
+
+    eq parseHexCode("") = "" .
+    eq parseHexCode(S) = hexStrToChar(first(S, 2)) + parseHexCode(skip(S, 2)) .
+
+    *** |================================================================================|
+    *** | Equations (Literal -> Bool)                                                    |
+    *** |================================================================================|
+
+    eq toBool(RNL) = false .
+    eq toBool('true) = true .
+    eq toBool('false) = false .
+    eq toBool(RCL) = toInt(RCL) =/= 0 .
+    eq toBool(RSL) = toString(RSL) =/= "" .
+    eq toBool(RIL) = toInt(RIL) =/= 0 .
+    eq toBool(RHL) = toInt(RHL) =/= 0 .
+    eq toBool(RRL) = toFloat(RRL) =/= 0.0 .
+    eq toBool(ID) = false [owise] .
+
+    *** |================================================================================|
+    *** | Equations (Literal -> Int)                                                     |
+    *** |================================================================================|
+
+    eq toInt(RNL) = 0 .
+    eq toInt('true) = 1 .
+    eq toInt('false) = 0 .
+    ceq toInt(RCL) =
+        if length(S) == 2 then
+            ascii(first(S)) * 256 + ascii(first(skip(S, 1)))
+        else
+            ascii(first(S))
+        fi
+        if S := toString(RCL) .
+    ceq toInt(RSL) =
+        if isValidInteger(S) then
+            intStrToInt(S)
+        else
+            0
+        fi
+        if S := toString(RSL) .
+    eq toInt(RIL) = intStrToInt(toString(RIL)) .
+    eq toInt(RHL) = hexStrToInt(toString(RHL)) .
+    eq toInt(RRL) = floatToInt(toFloat(RRL)) .
+    eq toInt(ID) = 0 [owise] .
+
+    *** |================================================================================|
+    *** | Equations (Literal -> Float)                                                   |
+    *** |================================================================================|
+
+    eq toFloat(RNL) = 0.0 .
+    eq toFloat('true) = 1.0 .
+    eq toFloat('false) = 0.0 .
+    ceq toFloat(RCL) = intStrToFloat(S)
+        if I := toInt(RCL) /\ S := intToIntStr(I) .
+    ceq toFloat(RSL) =
+        if isValidReal(S) then
+            strToFloat(S)
+        else
+            0.0
+        fi
+        if S := toString(RSL) .
+    eq toFloat(RIL) = intStrToFloat(toString(RIL)) .
+    eq toFloat(RHL) = hexStrToFloat(toString(RHL)) .
+    eq toFloat(RRL) = strToFloat(toString(RRL)) .
+    eq toFloat(ID) = 0.0 [owise] .
+
+    *** |================================================================================|
+    *** | Equations (Literal -> String)                                                  |
+    *** |================================================================================|
+
+    eq toString(RNL) = string(RNL) .
+    eq toString(RBL) = string(RBL) .
+    ceq toString(RCL) =
+        if isAsciiCode(S) then
+            parseHexCode(fillHexCode(skip(S, 2), 2))
+        else if isUnicodeCode(S) then
+            parseHexCode(fillHexCode(skip(S, 2), 4))
+        else if isEscapeCode(S) then
+            if S == "\\0" then
+                "\0"
+            else if S == "\\\\" then
+                "\\"
+            else if S == "\\\'" then
+                "\'"
+            else if S == "\\\"" then
+                "\""
+            else if S == "\\n" then
+                "\n"
+            else if S == "\\t" then
+                "\t"
+            else if S == "\\r" then
+                "\r"
+            else
+                ""
+            fi fi fi fi fi fi fi
+        else
+            S
+        fi fi fi
+        if S := parseChar(RCL) .
+    eq toString(RSL) = parseString(RSL) .
+    eq toString(RIL) = parseAndSkipPlus(RIL) .
+    eq toString(RHL) = skip(string(RHL), 2) .
+    eq toString(RRL) = parseAndSkipPlus(RRL) .
+    eq toString(ID) = "" [owise] .
+
+    *** |================================================================================|
+    *** | Equations (Maude -> Literal)                                                   |
+    *** |================================================================================|
+
+    eq toLiteral(true) = qid("true") .
+    eq toLiteral(false) = qid("false") .
+    eq toLiteral(C) = qid("'" + mangleEscapeCodes(C) + "'") .
+    eq toLiteral(S) = qid("\"" + mangleEscapeCodes(S) + "\"") .
+    eq toLiteral(I) = qid(string(I, 10)) .
+    eq toLiteral(F) = qid(string(F)) .
+    eq toHexLiteral(I) = qid("0x" + string(I, 16)) .
+
+endfm

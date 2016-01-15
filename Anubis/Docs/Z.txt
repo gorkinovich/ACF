@@ -1,0 +1,149 @@
+
+--- **************************************************************************************
+--- * ...
+--- **************************************************************************************
+
+--- |************************************************************************************|
+--- | ... |
+--- |************************************************************************************|
+
+*** |------------------------------------------------------------------------------------|
+*** | ... |
+*** |------------------------------------------------------------------------------------|
+
+    *** |--------------------------------------------------------------------------------|
+    *** | ... |
+    *** |--------------------------------------------------------------------------------|
+
+    *** |================================================================================|
+    *** | Sorts                                                                          |
+    *** |================================================================================|
+
+    *** TODO: Check this code...
+
+    *** |================================================================================|
+    *** | Subsorts                                                                       |
+    *** |================================================================================|
+
+    *** TODO: Check this code...
+
+    *** |================================================================================|
+    *** | Operators                                                                      |
+    *** |================================================================================|
+
+    *** TODO: Check this code...
+
+    *** |================================================================================|
+    *** | Variables                                                                      |
+    *** |================================================================================|
+
+    *** TODO: Check this code...
+
+    *** |================================================================================|
+    *** | Memberships                                                                    |
+    *** |================================================================================|
+
+    *** TODO: Check this code...
+
+    *** |================================================================================|
+    *** | Equations                                                                      |
+    *** |================================================================================|
+
+    *** TODO: Check this code...
+
+    *** |================================================================================|
+    *** | Rules                                                                          |
+    *** |================================================================================|
+
+    *** TODO: Check this code...
+
+    --- //--------------------------------------------------------------------------------
+    --- // .
+    --- //--------------------------------------------------------------------------------
+
+fmod MEMORY is
+    pr QID . pr INT .
+    sort Mem .
+    op [_,_] : Qid Int -> Mem [ctor] .
+    op none : -> Mem [ctor] .
+    op __ : Mem Mem -> Mem [ctor assoc comm id:none] .
+endfm
+
+fmod TEST is
+    pr MEMORY .
+    sort Cond .
+    op _==_ : Qid Int -> Cond [ctor] .
+    op eval : Cond Mem -> Bool .
+    var Q : Qid . vars I I' : Int . var M : Mem .
+    eq eval(Q == I, [Q, I'] M) = I == I' .
+endfm
+
+fmod SEQ is
+    pr TEST .
+    sort Ins InsUsuario InsInf .
+    subsort InsUsuario InsInf < Ins .
+    op skip : -> Ins [ctor] .
+    op _:=_ : Qid Int -> Ins [ctor] .
+    op if_then_fi : Cond Ins -> Ins [ctor] .
+    op _;_ : Ins Ins -> Ins [ctor assoc] .
+    op while_do_od -> Cond Ins -> ins [ctor] .
+    op repeat_forever : Ins -> Ins [ctor] .
+endfm
+
+mod PARALELO is
+    pr SEQ .
+    sorts Proceso Pid PS CPU .
+    op {_,_} : Pid Ins -> Proceso [ctor] .
+    subsort Proceso < PS .
+    op _|_ : PS PS -> PS [ctor assoc comm] .
+    op [_,_,_]  PS Mem Pid -> CPU [ctor] .
+    op psv : -> PS [ctor] .
+    rl [skip] : [{PID, skip ; I}|PS, M, PID'] => [{PID, I}|PS, M PID] .
+    rl [asig] : [{PID, Q:=E ; I}|PS, [Q,E']M, PID'] => [{PID, I}|PS, [Q,E]M, PID] .
+    rl [if] : [{PID, if C then I fi ; I'}|PS, M, PID'] =>
+        [{PID, if eval(C,M) then I ; I' else I' fi}|PS, M, PID] .
+    rl [while] : [{PID, while C do I od ; I'}|PS, M, PID'] =>
+        [{PID, if eval(C,M) then I ; while C do I od ; I' else I' fi}|PS, M, PID] .
+    rl [iu] : [{PID, IU ; I}|PS, M, PID'] => [{PID, I}|PS, M, PID] .
+    rl [ii] : [{PID, II ; I}|PS, M, PID'] => [{PID, II ; I}|PS, M, PID] .
+endm
+
+--- Algoritmo de exclusión de Decker:
+mod PROPS is
+    pr PARALELO .
+    pr SATISFACTION .
+    subsort CPU < State .
+    op crit : -> InsUsuario .
+    op p1 p2 : -> Ins .
+    eq pq = repeat
+                'c1 := 1 ;
+                while 'c2 == 1 do
+                    if 'turn == 2 then
+                        'c1 := 0 ;
+                        while 'turn == 2 do skip od
+                        'c1 := 1
+                    fi
+                od ;
+                crit ;
+                'turn := 2 ;
+                'c1 := 0
+            forever .
+
+    op enCrit : Pid -> Prop [ctor] .
+    eq [{PID, crit ; I} | PS, M, PID'] |= enCrit(PID) = true .
+    op exec : Pid -> Prop [ctor] .
+    eq [PS, M, PID] |= exec(PID) = true .
+endm
+
+mod TEST is
+    pr PROPS .
+    pr MODEL-CHECKER .
+    pr LTL-SIMPLIFIER .
+    op init : -> CPU .
+    eq init = [{1,p1} | {2,p2}, ['c1,0]['c2,0]['turn,0], 0] .
+endm
+
+---(
+red modelCheck(init, [] not(enCrit(1) and enCrit(2))) .
+red modelCheck(init, [] <> exec(1) -> [] <> enCrit(1)) .
+)

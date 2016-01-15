@@ -1,0 +1,226 @@
+--- **************************************************************************************
+--- * Anubis Programming Language
+--- * Copyright (c) 2014-2015 Gorka Suárez García
+--- *
+--- * Permission is hereby granted, free of charge, to any person obtaining a copy
+--- * of this software and associated documentation files (the "Software"), to deal
+--- * in the Software without restriction, including without limitation the rights
+--- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+--- * copies of the Software, and to permit persons to whom the Software is
+--- * furnished to do so, subject to the following conditions:
+--- *
+--- * The above copyright notice and this permission notice shall be included in
+--- * all copies or substantial portions of the Software.
+--- *
+--- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+--- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+--- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+--- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+--- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+--- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+--- * DEALINGS IN THE SOFTWARE.
+--- **************************************************************************************
+
+--- |************************************************************************************|
+--- | ANUBIS-SYNTAX-CALLEXPR: This module contains the syntax of the expressions.        |
+--- |************************************************************************************|
+
+fmod ANUBIS-SYNTAX-CALLEXPR is
+    protecting ANUBIS-SYNTAX-COMPLEXPR .
+
+    *** |================================================================================|
+    *** | Sorts                                                                          |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // We have the "call to a function" as an expression, but a sequence of
+    --- // parameters is really a horrible problem of expressions. We'll need to
+    --- // make a generic "function expression" to allow in the code to have calls,
+    --- // declarations and other things.
+    --- //--------------------------------------------------------------------------------
+
+    sorts GenericFunctionExpression FunctionParameter ByValFunctionParameter
+          ByRefFunctionParameter ParametersExpression EmptyParametersExpression
+          CallParametersExpression CallW1VMEParamExpression CallW1BoolParamExpression
+          CallW1VarParamExpression FunctionParametersExpression FunctionSignatureExpression .
+
+    *** |================================================================================|
+    *** | Subsorts                                                                       |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // Parameters in functions are a type of expression and we'll have two types of
+    --- // them: parameters passed by value or by reference.
+    --- //--------------------------------------------------------------------------------
+
+    subsort ByValFunctionParameter ByRefFunctionParameter < FunctionParameter < Expression .
+    subsort MatchExpression < ByValFunctionParameter .
+
+    --- //--------------------------------------------------------------------------------
+    --- // We'll need some special types of "call parameters", just to use them in some
+    --- // of the control statements in the language.
+    --- //--------------------------------------------------------------------------------
+
+    subsort CallParametersExpression < ParametersExpression .
+    subsort CallW1VarParamExpression < CallW1BoolParamExpression
+            CallW1VMEParamExpression < CallParametersExpression .
+
+    --- //--------------------------------------------------------------------------------
+    --- // This is a strange situation where you have a type that fits into other types.
+    --- // The function parameters expression can collide with the call parameters
+    --- // expression, they are very different concepts each other, but sometimes the
+    --- // first one can be similar to the second one. Anyway function parameters are
+    --- // a subtype of parameters expression.
+    --- //--------------------------------------------------------------------------------
+
+    subsort FunctionParametersExpression < CallParametersExpression CallW1VMEParamExpression
+            CallW1VarParamExpression ParametersExpression .
+
+    --- //--------------------------------------------------------------------------------
+    --- // We have a "funny" case of total collision with the empty parameters
+    --- // expression, because many types allow this situation.
+    --- //--------------------------------------------------------------------------------
+
+    subsort EmptyParametersExpression < ParametersExpression CallParametersExpression
+            FunctionParametersExpression .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Here we'll define how function expressions works and the relations between
+    --- // the different subtypes. As you can see, we have the same problem with
+    --- // collisions and concepts, but you can't always get what you want.
+    --- //--------------------------------------------------------------------------------
+
+    subsort CallFunctionExpression < GenericFunctionExpression .
+    subsort FunctionSignatureExpression < CallFunctionExpression GenericFunctionExpression .
+
+    *** |================================================================================|
+    *** | Operators                                                                      |
+    *** |================================================================================|
+
+    --- |-----------------------------|
+    --- | Associativity:              |
+    --- | gather(E e) = left to right |
+    --- | gather(e E) = right to left |
+    --- |-----------------------------|
+
+    *** |================================================================================|
+    *** | Operators (Function)                                                           |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // So you need to call a function, this would be easy, right? But in this
+    --- // language functions are also objects, so not only identifiers are functions.
+    --- // We can call a function returned from another function or from a container.
+    --- // That's why we need to use a variable expression and return another one.
+    --- // As parameters we can receive anything.
+    --- //--------------------------------------------------------------------------------
+
+    op `(`) : -> EmptyParametersExpression [ctor prec 1] .
+    op `(_`) : ValueExpression -> ParametersExpression [ctor prec 1] .
+    op `(_`) : MatchExpression -> ParametersExpression [ctor prec 1] .
+    op `(_`) : FunctionParameter -> ParametersExpression [ctor prec 1] .
+    op `(_`) : SequenceOfExpressions -> ParametersExpression [ctor prec 1] .
+
+    op __ : VariableExpression ParametersExpression ->
+            GenericFunctionExpression [ctor prec 2 gather(E e)] .
+
+    op ref_ : MatchExpression -> ByRefFunctionParameter [ctor prec 38].
+    op _... : Identifier -> ByValFunctionParameter [ctor prec 38].
+
+    *** |================================================================================|
+    *** | Operators (New)                                                                |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // We can create new objects in memory with the new expression.
+    --- //--------------------------------------------------------------------------------
+
+    op new__ : TypeIdentifier CallParametersExpression ->
+               VariableExpression [ctor prec 2 gather(e e)] .
+
+    *** |================================================================================|
+    *** | Operators                                                                      |
+    *** |================================================================================|
+
+    op isCallParametersExpression : ParametersExpression -> Bool .
+    op isCallW1VMEParamExpression : ParametersExpression -> Bool .
+    op isCallW1BoolParamExpression : ParametersExpression -> Bool .
+    op isCallW1VarParamExpression : ParametersExpression -> Bool .
+
+    op isFunctionParametersExpression : ParametersExpression -> Bool .
+    op isSequenceOfFunctionParameters : SequenceOfExpressions -> Bool .
+
+    *** |================================================================================|
+    *** | Variables                                                                      |
+    *** |================================================================================|
+
+    vars LEX REX : Expression .
+
+    var IDR : Identifier .
+    var PEX : ParametersExpression .
+    var EPE : EmptyParametersExpression .
+    var SOE : SequenceOfExpressions .
+    var FPA : FunctionParameter .
+    var VLE : ValueExpression .
+    var BOE : BooleanExpression .
+    var VRE : VariableExpression .
+    var VME : VariableMatchExpression .
+
+    *** |================================================================================|
+    *** | Memberships                                                                    |
+    *** |================================================================================|
+
+    cmb PEX : CallParametersExpression if isCallParametersExpression(PEX) .
+    cmb PEX : CallW1VMEParamExpression if isCallW1VMEParamExpression(PEX) .
+    cmb PEX : CallW1BoolParamExpression if isCallW1BoolParamExpression(PEX) .
+    cmb PEX : CallW1VarParamExpression if isCallW1VarParamExpression(PEX) .
+    cmb PEX : FunctionParametersExpression if isFunctionParametersExpression(PEX) .
+
+    cmb VRE PEX : CallFunctionExpression if isCallParametersExpression(PEX) .
+    cmb IDR PEX : FunctionSignatureExpression if isFunctionParametersExpression(PEX) .
+
+    *** |================================================================================|
+    *** | Equations                                                                      |
+    *** |================================================================================|
+
+    eq isCallParametersExpression(EPE) = true .
+    eq isCallParametersExpression((VLE)) = true .
+    eq isCallParametersExpression((SOE)) = isSequenceOfVariableMatchExpressions(SOE) or
+                                           isSequenceOfValueExpressions(SOE) .
+    eq isCallParametersExpression(PEX) = false [owise] .
+
+    eq isCallW1VMEParamExpression((VME)) = true .
+    eq isCallW1VMEParamExpression(PEX) = false [owise] .
+
+    eq isCallW1BoolParamExpression((BOE)) = true .
+    eq isCallW1BoolParamExpression(PEX) = false [owise] .
+
+    eq isCallW1VarParamExpression((VRE)) = true .
+    eq isCallW1VarParamExpression(PEX) = false [owise] .
+
+    eq isFunctionParametersExpression(()) = true .
+    eq isFunctionParametersExpression((FPA)) = true .
+    eq isFunctionParametersExpression((SOE)) = isSequenceOfFunctionParameters(SOE) .
+    eq isFunctionParametersExpression(PEX) = false [owise] .
+
+    eq isSequenceOfFunctionParameters(LEX, REX) =
+        if (LEX :: SequenceOfExpressions) and (REX :: SequenceOfExpressions) then
+            isSequenceOfFunctionParameters(LEX) and
+            isSequenceOfFunctionParameters(REX)
+        else if LEX :: SequenceOfExpressions then
+            if (REX :: FunctionParameter) then
+                isSequenceOfFunctionParameters(LEX)
+            else
+                false
+            fi
+        else if REX :: SequenceOfExpressions then
+            if (LEX :: FunctionParameter) then
+                isSequenceOfFunctionParameters(REX)
+            else
+                false
+            fi
+        else
+            (LEX :: FunctionParameter) and (REX :: FunctionParameter)
+        fi fi fi .
+
+endfm

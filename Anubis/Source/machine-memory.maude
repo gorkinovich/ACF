@@ -1,0 +1,153 @@
+--- **************************************************************************************
+--- * Anubis Programming Language
+--- * Copyright (c) 2014-2015 Gorka Suárez García
+--- *
+--- * Permission is hereby granted, free of charge, to any person obtaining a copy
+--- * of this software and associated documentation files (the "Software"), to deal
+--- * in the Software without restriction, including without limitation the rights
+--- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+--- * copies of the Software, and to permit persons to whom the Software is
+--- * furnished to do so, subject to the following conditions:
+--- *
+--- * The above copyright notice and this permission notice shall be included in
+--- * all copies or substantial portions of the Software.
+--- *
+--- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+--- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+--- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+--- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+--- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+--- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+--- * DEALINGS IN THE SOFTWARE.
+--- **************************************************************************************
+
+--- |************************************************************************************|
+--- | ANUBIS-MACHINE-MEMORY: This module represents the memory of the machine.           |
+--- |************************************************************************************|
+
+fmod ANUBIS-MACHINE-MEMORY is
+    protecting ANUBIS-MACHINE-VALUE .
+
+    *** |================================================================================|
+    *** | Sorts                                                                          |
+    *** |================================================================================|
+
+    sorts Memory MemCell MemAndValue .
+
+    *** |================================================================================|
+    *** | Subsorts                                                                       |
+    *** |================================================================================|
+
+    subsort MemCell < Memory .
+
+    *** |================================================================================|
+    *** | Operators                                                                      |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // Memory
+    --- //--------------------------------------------------------------------------------
+
+    op mcnil : -> MemCell [ctor] .
+    op __ : Memory Memory -> Memory [ctor assoc id: mcnil] .
+
+    --- //--------------------------------------------------------------------------------
+    --- // cell: address, content.
+    --- // mav: memory, deleted value.
+    --- //--------------------------------------------------------------------------------
+
+    op cell : Nat Value -> MemCell [ctor] .
+    op mav : Memory Value -> MemAndValue [ctor] .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Functions
+    --- //--------------------------------------------------------------------------------
+
+    op memAddVal : Value Memory -> Memory .
+    op memAddVal' : Nat Value Memory -> Memory .
+
+    op valRefInc : Value -> Value .
+    op valRefDec : Value -> Value .
+    op isValRefZero : Value -> Bool .
+
+    op memRefInc : Nat Memory -> Memory .
+    op memRefDec : Nat Memory -> MemAndValue .
+
+    op memFirstEmpty : Memory -> Nat .
+    op memFirstEmpty' : Nat Memory -> Nat .
+
+    op mavWithGarbage : MemAndValue -> Bool .
+    op mavGetMemory : MemAndValue -> Memory .
+    op mavGetValue : MemAndValue -> Value .
+
+    op memDelCell : Nat Memory -> MemAndValue .
+
+    op memGetVal : Nat Memory -> Value .
+    op memSetVal : Nat Value Memory -> Memory .
+
+    *** |================================================================================|
+    *** | Variables                                                                      |
+    *** |================================================================================|
+
+    var S : String .
+    var OD : ObjectData .
+    vars N N' : Nat .
+    vars V V' : Value .
+    vars M M' : Memory .
+
+    *** |================================================================================|
+    *** | Equations                                                                      |
+    *** |================================================================================|
+
+    eq memAddVal(V, M) = memAddVal'(memFirstEmpty(M), V, M) .
+
+    eq memAddVal'(N, V, mcnil) = cell(N, V) .
+    eq memAddVal'(N, V, cell(N', void) M) = cell(N', V) M .
+    eq memAddVal'(N, V, cell(N', V') M) = cell(N', V') memAddVal'(N, V, M) [owise] .
+
+    eq valRefInc(obj(N, S, OD)) = obj(s(N), S, OD) .
+    eq valRefInc(V) = V [owise] .
+
+    eq valRefDec(obj(N, S, OD)) =
+        if N > 0 then obj(sd(N, 1), S, OD)
+        else obj(N, S, OD) fi .
+    eq valRefDec(V) = V [owise] .
+
+    eq isValRefZero(obj(N, S, OD)) = N == 0 .
+    eq isValRefZero(V) = false [owise] .
+
+    eq memRefInc(N, mcnil) = mcnil .
+    eq memRefInc(N, cell(N, V) M) = cell(N, valRefInc(V)) M .
+    eq memRefInc(N, cell(N', V') M) = cell(N', V') memRefInc(N, M) [owise] .
+
+    eq memRefDec(N, mcnil) = mav(mcnil, void) .
+    ceq memRefDec(N, cell(N, V) M) =
+        if isValRefZero(V') then mav(cell(N, void) M, V')
+        else mav(cell(N, V') M, void) fi
+        if V' := valRefDec(V) .
+    ceq memRefDec(N, cell(N', V') M) = mav(cell(N', V') M', V)
+        if mav(M', V) := memRefDec(N, M) [owise] .
+
+    eq memFirstEmpty(M) = memFirstEmpty'(0, M) .
+    eq memFirstEmpty'(N, mcnil) = s(N) .
+    eq memFirstEmpty'(N, cell(N', void) M) = N' .
+    eq memFirstEmpty'(N, cell(N', V) M) = memFirstEmpty'(N', M) [owise] .
+
+    eq mavWithGarbage(mav(M, V)) = V =/= void .
+    eq mavGetMemory(mav(M, V)) = M .
+    eq mavGetValue(mav(M, V)) = V .
+
+    eq memDelCell(N, mcnil) = mav(mcnil, void) .
+    eq memDelCell(N, cell(N, V) M) = mav(cell(N, void) M, V) .
+    ceq memDelCell(N, cell(N', V') M) = mav(cell(N', V') M', V)
+        if mav(M', V) := memDelCell(N, M) [owise] .
+
+    eq memGetVal(N, mcnil) = void .
+    eq memGetVal(N, cell(N, V) M) = V .
+    eq memGetVal(N, cell(N', V) M) = memGetVal(N, M) .
+
+    eq memSetVal(N, V, mcnil) = mcnil .
+    eq memSetVal(N, V, cell(N, V') M) = cell(N, V) M .
+    eq memSetVal(N, V, cell(N', V') M) = cell(N', V') memSetVal(N, V, M) .
+
+endfm

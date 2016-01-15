@@ -1,0 +1,114 @@
+--- **************************************************************************************
+--- * Anubis Programming Language
+--- * Copyright (c) 2014-2015 Gorka Suárez García
+--- *
+--- * Permission is hereby granted, free of charge, to any person obtaining a copy
+--- * of this software and associated documentation files (the "Software"), to deal
+--- * in the Software without restriction, including without limitation the rights
+--- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+--- * copies of the Software, and to permit persons to whom the Software is
+--- * furnished to do so, subject to the following conditions:
+--- *
+--- * The above copyright notice and this permission notice shall be included in
+--- * all copies or substantial portions of the Software.
+--- *
+--- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+--- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+--- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+--- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+--- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+--- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+--- * DEALINGS IN THE SOFTWARE.
+--- **************************************************************************************
+
+--- |************************************************************************************|
+--- | ANUBIS-SYNTAX-IDENTIFIER: This module represents the identifiers in the language.  |
+--- |************************************************************************************|
+
+fmod ANUBIS-SYNTAX-IDENTIFIER is
+    protecting ANUBIS-UTILITY-IDENTIFIER .
+
+    *** |================================================================================|
+    *** | Sorts                                                                          |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // We need to have 2 types of identifiers in the language. One is used to give
+    --- // name to the types we'll define and the other to the rest of cases.
+    --- //--------------------------------------------------------------------------------
+
+    sorts Identifier TypeIdentifier BasicTypeIdentifier BoolTypeIdentifier
+          CharTypeIdentifier NumericTypeIdentifier IntegerTypeIdentifier
+          RealTypeIdentifier ReferenceTypeIdentifier ObjectTypeIdentifier
+          FunctionTypeIdentifier TupleTypeIdentifier ListTypeIdentifier
+          StringTypeIdentifier UserTypeIdentifier .
+
+    *** |================================================================================|
+    *** | Subsorts                                                                       |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // So we're going to use the quoted identifiers to represent the identifiers
+    --- // in the language. I wish it could be another way to do it, without all those
+    --- // quotes, but I don't have all the time in the world to do this nice college
+    --- // work. ^_^
+    --- //--------------------------------------------------------------------------------
+
+    subsort Identifier TypeIdentifier < Qid .
+
+    --- |******************************************|
+    --- |                                          |
+    --- |   +----------> TypeIdentifier            |
+    --- |   |-+--------> BasicTypeIdentifier       |
+    --- |   | |--------> BoolTypeIdentifier        |
+    --- |   | |--------> CharTypeIdentifier        |
+    --- |   | ·-+------> NumericTypeIdentifier     |
+    --- |   |   |------> IntegerTypeIdentifier     |
+    --- |   |   ·------> RealTypeIdentifier        |
+    --- |   ·-+--------> ReferenceTypeIdentifier   |
+    --- |     |--------> ObjectTypeIdentifier      |
+    --- |     |--------> FunctionTypeIdentifier    |
+    --- |     |--------> TupleTypeIdentifier       |
+    --- |     ·-+------> ListTypeIdentifier        |
+    --- |       ·------> StringTypeIdentifier      |
+    --- |                                          |
+    --- |******************************************|
+
+    subsort BasicTypeIdentifier ReferenceTypeIdentifier < TypeIdentifier .
+    subsort BoolTypeIdentifier CharTypeIdentifier NumericTypeIdentifier < BasicTypeIdentifier .
+    subsort IntegerTypeIdentifier RealTypeIdentifier < NumericTypeIdentifier .
+    subsort ObjectTypeIdentifier FunctionTypeIdentifier TupleTypeIdentifier
+            ListTypeIdentifier UserTypeIdentifier < ReferenceTypeIdentifier .
+    subsort StringTypeIdentifier < ListTypeIdentifier .
+    subsort Identifier < UserTypeIdentifier .
+
+    *** |================================================================================|
+    *** | Variables                                                                      |
+    *** |================================================================================|
+
+    var ID : Qid .
+
+    *** |================================================================================|
+    *** | Memberships                                                                    |
+    *** |================================================================================|
+
+    cmb ID : Identifier if isValidIdentifier(ID) .
+
+    cmb ID : TypeIdentifier if isValidTypeIdentifier(ID) .
+
+    cmb ID : BoolTypeIdentifier if isValidTypeIdentifier(ID) /\
+             (string(ID) == "bool") or (string(ID) == "Bool") .
+    cmb ID : CharTypeIdentifier if isValidTypeIdentifier(ID) /\
+             (string(ID) == "char") or (string(ID) == "Char") .
+    cmb ID : IntegerTypeIdentifier if isValidTypeIdentifier(ID) /\
+             (string(ID) == "integer") or (string(ID) == "Integer") .
+    cmb ID : RealTypeIdentifier if isValidTypeIdentifier(ID) /\
+             (string(ID) == "real") or (string(ID) == "Real") .
+
+    cmb ID : ObjectTypeIdentifier if isValidTypeIdentifier(ID) /\ (string(ID) == "Object") .
+    cmb ID : FunctionTypeIdentifier if isValidTypeIdentifier(ID) /\ (string(ID) == "Function") .
+    cmb ID : TupleTypeIdentifier if isValidTypeIdentifier(ID) /\ (string(ID) == "Tuple") .
+    cmb ID : ListTypeIdentifier if isValidTypeIdentifier(ID) /\ (string(ID) == "List") .
+    cmb ID : StringTypeIdentifier if isValidTypeIdentifier(ID) /\ (string(ID) == "String") .
+
+endfm

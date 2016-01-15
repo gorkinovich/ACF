@@ -1,0 +1,121 @@
+***(
+Gorka Suárez García, ACF
+
+Ejercicio 1: Especifica en Maude un módulo funcional ARBIN para árboles
+binarios de búsqueda. El módulo tendrá:
+(a) Constructoras para el árbol de búsqueda vacío y para nodos con clave,
+    valor, hijo derecho e hijo izquierdo. Tanto las claves como los valores
+    serán números naturales.
+(b) Una función mezcla, que recibe dos naturales y devuelve otro natural.
+    Esta función se usará para combinar dos valores al insertar una clave
+    que ya estaba y puede tener el comportamiento que quieras como, por
+   ejemplo, sumar los dos valores.
+(c) Una función de inserción. Esta función usa mezcla para combinar dos
+    valores cuando la clave que se está insertando ya existía.
+(d) Una función parcial de búsqueda, que dado un árbol binario de búsqueda
+    y una clave (un natural) devuelva el valor asociado, si es que existe.
+)
+
+fmod ARBIN is
+    pr NAT .
+    sort Arbin .
+
+    *** Apartado (a)
+    op vacio : -> Arbin [ctor] .
+    op nodo : Nat Nat Arbin Arbin -> Arbin [ctor] .
+
+    *** Apartado (b)
+    vars N1 N2 : Nat .
+    op mezcla : Nat Nat -> Nat .
+    eq mezcla(N1, N2) = N1 + N2 .
+
+    *** Apartado (c)
+    vars C V CA VA : Nat .
+    vars AI AD : Arbin .
+    op inserta : Nat Nat Arbin -> Arbin .
+    eq inserta(C, V, vacio) = nodo(C, V, vacio, vacio) .
+    eq inserta(C, V, nodo(CA, VA, AI, AD)) =
+        if C == CA then
+            nodo(CA, mezcla(V, VA), AI, AD)
+        else
+            if C < CA then
+                nodo(CA, VA, inserta(C, V, AI), AD)
+            else
+                nodo(CA, VA, AI, inserta(C, V, AD))
+            fi
+        fi .
+
+    *** Apartado (d)
+    op buscar : Nat Arbin ~> Nat .
+    eq buscar(C, nodo(CA, VA, AI, AD)) =
+        if C == CA then
+            VA
+        else
+            if C < CA then
+                buscar(C, AI)
+            else
+                buscar(C, AD)
+            fi
+        fi .
+
+endfm
+
+***(
+Ejercicio 2 Haz pruebas en el módulo:
+(a) Insertando valores en distintos árboles, probando el caso en
+    el que la clave ya está.
+(b) Buscando valores, probando el caso en el que la clave no está.
+)
+
+fmod TEST-ARBIN is
+    pr ARBIN .
+
+    op arbolInicial : -> Arbin .
+    eq arbolInicial = inserta(1, 1, inserta(3, 1, inserta(2, 1, inserta(5, 1,
+        inserta(7, 1, inserta(6, 1, inserta(4, 1, vacio))))))) .
+
+    op sumarAlNodo3 : -> Arbin .
+    eq sumarAlNodo3 = inserta(3, 10, arbolInicial) .
+
+    op sumarAlNodo4 : -> Arbin .
+    eq sumarAlNodo4 = inserta(4, 10, arbolInicial) .
+
+    op sumarAlNodo5 : -> Arbin .
+    eq sumarAlNodo5 = inserta(5, 10, arbolInicial) .
+    
+    op buscar1 : ~> Nat .
+    eq buscar1 = buscar(1, arbolInicial) .
+    
+    op buscar7 : ~> Nat .
+    eq buscar7 = buscar(7, arbolInicial) .
+    
+    op buscar8 : ~> Nat .
+    eq buscar8 = buscar(8, arbolInicial) .
+endfm
+
+***(
+Pruebas:
+> load /Users/Gorkin/Gorkinovich/Master/Trabajos/ACF/P01.maude
+
+> red inserta(1, 1, inserta(3, 1, inserta(2, 1, inserta(5, 1, inserta(7, 1, inserta(6, 1, inserta(4, 1, vacio))))))) .
+Arbin: nodo(4, 1, nodo(2, 1, nodo(1, 1, vacio, vacio), nodo(3, 1, vacio, vacio)), nodo(6, 1, nodo(5, 1, vacio, vacio), nodo(7, 1, vacio, vacio)))
+
+> red inserta(3, 10, inserta(1, 1, inserta(3, 1, inserta(2, 1, inserta(5, 1, inserta(7, 1, inserta(6, 1, inserta(4, 1, vacio)))))))) .
+Arbin: nodo(4, 1, nodo(2, 1, nodo(1, 1, vacio, vacio), nodo(3, 11, vacio, vacio)), nodo(6, 1, nodo(5, 1, vacio, vacio), nodo(7, 1, vacio, vacio)))
+
+> red inserta(4, 10, inserta(1, 1, inserta(3, 1, inserta(2, 1, inserta(5, 1, inserta(7, 1, inserta(6, 1, inserta(4, 1, vacio)))))))) .
+Arbin: nodo(4, 11, nodo(2, 1, nodo(1, 1, vacio, vacio), nodo(3, 1, vacio, vacio)), nodo(6, 1, nodo(5, 1, vacio, vacio), nodo(7, 1, vacio, vacio)))
+
+> red inserta(5, 10, inserta(1, 1, inserta(3, 1, inserta(2, 1, inserta(5, 1, inserta(7, 1, inserta(6, 1, inserta(4, 1, vacio)))))))) .
+Arbin: nodo(4, 1, nodo(2, 1, nodo(1, 1, vacio, vacio), nodo(3, 1, vacio, vacio)), nodo(6, 1, nodo(5, 11, vacio, vacio), nodo(7, 1, vacio, vacio)))
+
+> red buscar(1, inserta(1, 10, inserta(3, 30, inserta(2, 20, inserta(5, 50, inserta(7, 70, inserta(6, 60, inserta(4, 40, vacio)))))))) .
+NzNat: 10
+
+> red buscar(7, inserta(1, 10, inserta(3, 30, inserta(2, 20, inserta(5, 50, inserta(7, 70, inserta(6, 60, inserta(4, 40, vacio)))))))) .
+NzNat: 70
+
+> red buscar(8, inserta(1, 10, inserta(3, 30, inserta(2, 20, inserta(5, 50, inserta(7, 70, inserta(6, 60, inserta(4, 40, vacio)))))))) .
+[Nat]: buscar(8, vacio)
+
+)

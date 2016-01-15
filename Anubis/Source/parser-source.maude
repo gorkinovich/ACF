@@ -1,0 +1,154 @@
+--- **************************************************************************************
+--- * Anubis Programming Language
+--- * Copyright (c) 2014-2015 Gorka Suárez García
+--- *
+--- * Permission is hereby granted, free of charge, to any person obtaining a copy
+--- * of this software and associated documentation files (the "Software"), to deal
+--- * in the Software without restriction, including without limitation the rights
+--- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+--- * copies of the Software, and to permit persons to whom the Software is
+--- * furnished to do so, subject to the following conditions:
+--- *
+--- * The above copyright notice and this permission notice shall be included in
+--- * all copies or substantial portions of the Software.
+--- *
+--- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+--- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+--- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+--- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+--- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+--- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+--- * DEALINGS IN THE SOFTWARE.
+--- **************************************************************************************
+
+--- |************************************************************************************|
+--- | ANUBIS-PARSER-SOURCE: This module contains the source parse of the language.       |
+--- |************************************************************************************|
+
+fmod ANUBIS-PARSER-SOURCE is
+    protecting ANUBIS-SYNTAX .
+    protecting ANUBIS-PARSER-ERROR .
+
+    *** |================================================================================|
+    *** | Sorts                                                                          |
+    *** |================================================================================|
+
+    sorts SourceProject SourceFiles SourceFile .
+    sorts Source GetFileResult .
+
+    *** |================================================================================|
+    *** | Subsorts                                                                       |
+    *** |================================================================================|
+
+    subsort SourceFile < SourceFiles .
+    subsort SourceCode < GetFileResult .
+    subsort Error < Source GetFileResult .
+
+    *** |================================================================================|
+    *** | Operators (Error)                                                              |
+    *** |================================================================================|
+
+    op fileNotFoundError : String -> Error .
+    op findParseErrors : SourceProject -> Error .
+
+    *** |================================================================================|
+    *** | Operators (Files)                                                              |
+    *** |================================================================================|
+
+    op _`[>_<`] : String SourceCode -> SourceFile [ctor prec 100
+                  format(ois osr d on+++s o---isr d o)] .
+
+    op _<|>_ : SourceFiles SourceFiles -> SourceFiles [ctor prec 101 assoc comm
+               format(o onisg on on)] .
+
+    op `{>_<`} : SourceFiles -> SourceProject [ctor
+                 format(onisg d on+++s o---isg d on)] .
+
+    op fileExists : String SourceProject -> Bool .
+    op getFile : String SourceProject -> GetFileResult .
+
+    *** |================================================================================|
+    *** | Operators (Parse)                                                              |
+    *** |================================================================================|
+
+    op source : SourceCode -> Source [ctor] .
+
+    op toSourceCode : Source -> SourceCode .
+
+    op joinSources : Source Source -> Source .
+    op getDeclaration : SourceProject Declaration -> Source .
+    op getDeclarations : SourceProject Source SourceCode -> Source .
+    op getDeclarations : SourceProject SourceCode -> Source .
+    op getSource : SourceProject GetFileResult -> Source .
+    op getSource : SourceProject String -> Source .
+
+    op parseProject : String SourceProject -> Source .
+
+    *** |================================================================================|
+    *** | Variables                                                                      |
+    *** |================================================================================|
+
+    var SLT : StringLiteral .
+    var STR : String .
+    var DCL : Declaration .
+    var SRC : SourceCode .
+    var ERR : Error .
+
+    vars DCS DCS' : Declarations .
+
+    var SOURCE : Source .
+    var SRCFLS : SourceFiles .
+    var SRCPRJ : SourceProject .
+
+    var ERRSPR : [SourceProject] .
+
+    *** |================================================================================|
+    *** | Equations (Error)                                                              |
+    *** |================================================================================|
+
+    eq fileNotFoundError(STR) = #error#("File \"" + STR + "\" not found.") .
+    eq findParseErrors(ERRSPR) = #error#("Invalid project.") .
+
+    *** |================================================================================|
+    *** | Equations (Project)                                                            |
+    *** |================================================================================|
+
+    eq fileExists(STR, {> STR [> SRC <] <}) = true .
+    eq fileExists(STR, {> STR [> SRC <] <|> SRCFLS <}) = true .
+    eq fileExists(STR, {> SRCFLS <}) = false [owise] .
+
+    eq getFile(STR, {> STR [> SRC <] <}) = SRC
+        [print "ANUBIS: Loading source file " STR] .
+    eq getFile(STR, {> STR [> SRC <] <|> SRCFLS <}) = SRC
+        [print "ANUBIS: Loading source file " STR] .
+    eq getFile(STR, {> SRCFLS <}) = fileNotFoundError(STR)
+        [owise print "ANUBIS: File " STR " not found"] .
+
+    *** |================================================================================|
+    *** | Equations                                                                      |
+    *** |================================================================================|
+
+    eq toSourceCode(source(SRC)) = SRC .
+
+    eq joinSources(source(DCS), source(DCS')) = source(DCS DCS') .
+    eq joinSources(SOURCE, ERR) = ERR .
+    eq joinSources(ERR, SOURCE) = ERR .
+
+    eq getDeclaration(SRCPRJ, include SLT ;) = getSource(SRCPRJ, toString(SLT)) .
+    eq getDeclaration(SRCPRJ, DCL) = source(DCL) [owise] .
+
+    eq getDeclarations(SRCPRJ, SOURCE, DCS) = joinSources(SOURCE, getSource(SRCPRJ, DCS)) .
+    eq getDeclarations(SRCPRJ, ERR, DCS) = ERR [owise] .
+
+    eq getDeclarations(SRCPRJ, DCL) = getDeclaration(SRCPRJ, DCL) .
+    eq getDeclarations(SRCPRJ, DCL DCS) = getDeclarations(SRCPRJ, getDeclaration(SRCPRJ, DCL), DCS) .
+
+    eq getSource(SRCPRJ, SRC) = getDeclarations(SRCPRJ, SRC) .
+    eq getSource(SRCPRJ, ERR) = ERR .
+
+    eq getSource(SRCPRJ, STR) = getSource(SRCPRJ, getFile(STR, SRCPRJ)) .
+
+    eq parseProject(STR, SRCPRJ) = getSource(SRCPRJ, STR) .
+    eq parseProject(STR, ERRSPR) = findParseErrors(ERRSPR) .
+
+endfm

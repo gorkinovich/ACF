@@ -1,0 +1,572 @@
+--- **************************************************************************************
+--- * Anubis Programming Language
+--- * Copyright (c) 2014-2015 Gorka Suárez García
+--- *
+--- * Permission is hereby granted, free of charge, to any person obtaining a copy
+--- * of this software and associated documentation files (the "Software"), to deal
+--- * in the Software without restriction, including without limitation the rights
+--- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+--- * copies of the Software, and to permit persons to whom the Software is
+--- * furnished to do so, subject to the following conditions:
+--- *
+--- * The above copyright notice and this permission notice shall be included in
+--- * all copies or substantial portions of the Software.
+--- *
+--- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+--- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+--- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+--- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+--- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+--- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+--- * DEALINGS IN THE SOFTWARE.
+--- **************************************************************************************
+
+--- |************************************************************************************|
+--- | ANUBIS-RUNNER: This module contains the runner of the language.                    |
+--- |************************************************************************************|
+
+*** TODO: Complete this file...
+
+fmod ANUBIS-RUNNER is
+    protecting ANUBIS-APPLICATION .
+    protecting ANUBIS-RUNNER-BASE .
+    protecting ANUBIS-RUNNER-START .
+    protecting ANUBIS-RUNNER-UTILITY .
+    protecting ANUBIS-RUNNER-EVAL .
+
+    *** |================================================================================|
+    *** | Operators (General)                                                            |
+    *** |================================================================================|
+
+    op run : String SourceProject -> String .
+
+    *** |================================================================================|
+    *** | Operators (Execute)                                                            |
+    *** |================================================================================|
+
+    op execute : Application -> Application .
+    op execute : Application BlockOrStatement -> Application .
+
+    *** |================================================================================|
+    *** | Operators (Enter & Exit)                                                       |
+    *** |================================================================================|
+
+    op enterContext : Application Ambit Instructions -> Application .
+    op enterAmbit : Application Ambit Instructions -> Application .
+    op enterContext : Application -> Application .
+    op enterAmbit : Application -> Application .
+    op exitContext : Application -> Application .
+    op exitAmbit : Application -> Application .
+
+    *** |================================================================================|
+    *** | Operators (Evaluation)                                                         |
+    *** |================================================================================|
+
+    op eval : Application Expression -> EvalResult .
+    op locate : Application Expression -> LocateResult .
+
+    op evalIdentifier : Application String -> EvalResult .
+    op evalIdentifierIfRType : Application String -> EvalResult .
+    op evalIdentifierIfType : Application String -> EvalResult .
+    op evalIdentifierIfData : Application String -> EvalResult .
+    op evalIdentifierIfFunc : Application String -> EvalResult .
+    op evalIdentifierIfGlobal : Application String -> EvalResult .
+    op evalIdentifierIfOData : Application Value String -> EvalResult .
+    op evalIdentifierIfOFunc : Application Value String -> EvalResult .
+    op evalAmbitData : Application AmbitData -> EvalResult .
+
+    *** |================================================================================|
+    *** | Variables                                                                      |
+    *** |================================================================================|
+
+    var SPRJ : SourceProject .
+    var PRGM : Program .
+    var MEMO : Memory .
+    var AMBT : Ambit .
+
+    var ALSI : AliasItem .
+    var ALSL : AliasesList .
+    var TYPI : TypeItem .
+    var TYPL : TypesList .
+    var FNCI : FunctionItem .
+    var FNCL : FunctionsList .
+    var LMBI : LambdaItem .
+    var LMBL : LambdasList .
+    var CTRI : ConstructorItem .
+    var CTRL : ConstructorsList .
+    var DTRI : DestructorItem .
+    var PRPI : PropertyItem .
+    var PRPL : PropertiesList .
+    var FLDI : FieldItem .
+    var FLDL : FieldsList .
+    var MTHI : MethodItem .
+    var MTHL : MethodsList .
+    var PRMI : ParameterItem .
+    var PRML : ParametersList .
+    var FTHI : FatherItem .
+    var FTHL : FathersList .
+    var SSEQ : StartSequence .
+    var BSEQ : BuildSequence .
+
+    var CNMD : ContextMode .
+    var AMST : AmbitStack .
+    var AMDT : AmbitData .
+    var ODAT : ObjectData .
+    var FVLS : FieldValues .
+    var BVAL : BasicValue .
+    var BVLS : BasicValues .
+    var PVAL : PointerValue .
+    var ITVL : ItemValue .
+
+    vars VAL0 VAL1 VAL2 VAL3 VAL4 VAL5 : Value .
+    vars VLS0 VLS1 VLS2 VLS3 VLS4 VLS5 : Values .
+    vars CNT0 CNT1 CNT2 CNT3 CNT4 CNT5 : Context .
+    vars CTS0 CTS1 CTS2 CTS3 CTS4 CTS5 : ContextStack .
+    vars REG0 REG1 REG2 REG3 REG4 REG5 : Registers .
+    vars INS0 INS1 INS2 INS3 INS4 INS5 : Instructions .
+    vars IST0 IST1 IST2 IST3 IST4 IST5 : InstructionsStack .
+
+    vars APP0 APP1 APP2 APP3 APP4 APP5 APPZ : Application .
+
+    vars STR0 STR1 STR2 STR3 : String .
+    vars STS0 STS1 STS2 STS3 : Statements .
+    vars EXPR EXP1 EXP2 EXP3 : Expression .
+
+    vars BORS BORS' BORS'' : BlockOrStatement .
+    vars BOFS BOFS' BOFS'' : BlockOfStatements .
+
+    var NLIT : NullLiteral .
+    var BLIT : BoolLiteral .
+    var CLIT : CharLiteral .
+    var SLIT : StringLiteral .
+    var ILIT : IntegerLiteral .
+    var RLIT : RealLiteral .
+    var HLIT : HexadecimalLiteral .
+
+    var IDTF : Identifier .
+    var TYID : TypeIdentifier .
+
+    vars B B' : Bool .
+    vars N N' : Nat .
+    vars F F' : Float .
+    vars I I' : Int .
+
+    *** TODO: Work in progress...
+    var VALEXP : ValueExpression .
+    var VAREXP : VariableExpression .
+    var MATEXP : MatchExpression .
+    var CNTEXP : ContainerExpression .
+    var OBJEXP : ObjectExpression .
+    var TUPEXP : TupleExpression .
+    var LSTEXP : ListExpression .
+    var INTEXP : IntegerExpression .
+    var SEOEXP : SequenceOfExpressions .
+    var SOMEXP : SequenceOfMatchExpressions .
+    var CONCND : ControlCondition .
+    var SWCVAR : SwitchControlVariable .
+    var BOCSTS : BlockOfCaseStatements .
+    var FCNPRM : ForControlParameters .
+    var FECVAR : ForEachControlVariable .
+    var CTCVAR : CatchControlVariable .
+    *** ...
+
+    var ERRPRJ : [SourceProject] .
+
+    *** |================================================================================|
+    *** | Equations (General)                                                            |
+    *** |================================================================================|
+
+    ceq run(STR0, SPRJ) = maudePrint("\n\n" + STR1 + "\n\n")
+        if APP0 := appCreate(STR0, SPRJ)           /\
+           APP1 := getStartCode(APP0)              /\
+           APP2 := APP1[ContextMode: CntModeStart] /\
+           APPZ := execute(APP2)                   /\
+           STR1 := APPZ[Output]                     .
+
+    eq run(STR0, ERRPRJ) = getErrorString(findParseErrors(ERRPRJ)) [owise] .
+
+    *** |================================================================================|
+    *** | Equations (Execute)                                                            |
+    *** |================================================================================|
+
+    ceq execute(APP0) =
+        if finishedApp(APP0) then
+            APP0
+        else
+            if finishedContext(APP0) then
+                execute(exitContext(APP0))
+            else
+                if noMoreCode(APP0) then
+                    execute(exitAmbit(APP0))
+                else
+                    execute(APPZ)
+                fi
+            fi
+        fi
+        if CNT0 := APP0 [Context]                   /\
+           INS0 := CNT0 [Instructions]              /\
+           BORS := firstStatement(INS0)             /\
+           STS0 := tailStatements(INS0)             /\
+           CNT1 := CNT0 [Instructions: instr(STS0)] /\
+           APP1 := APP0 [Context: CNT1]             /\
+           APPZ := execute(APP1, BORS)               .
+
+    ceq execute(APP0, EXPR ;) = APPZ
+        if evr(APPZ, VAL0) := eval(APP0, EXPR) .
+
+    eq execute(APP0, { STS0 }) = enterAmbit(APP0, adnil, instr(STS0)) .
+
+    *** TODO: Work in progress...
+    --- execute
+    *** ...
+
+    *** |================================================================================|
+    *** | Equations (Enter & Exit)                                                       |
+    *** |================================================================================|
+
+    ceq enterContext(APP0, AMBT, INS0) = APPZ
+        if CNT0 := APP0 [Context]            /\
+           CTS0 := APP0 [ContextStack]       /\
+           CTS1 := pushContext(CNT0, CTS0)   /\
+           CNT1 := contextCreate(AMBT, INS0) /\
+           APP1 := APP0 [Context: CNT1]      /\
+           APPZ := APP1 [ContextStack: CTS1]  .
+
+    ceq enterAmbit(APP0, AMBT, INS0) = APP0
+        if CNT0 := APP0 [Context]                     /\
+           AMST := pushAmbit(AMBT, CNT0 [AmbitStack]) /\
+           INS1 := CNT0 [Instructions]                /\
+           IST0 := CNT0 [InstructionsStack]           /\
+           IST1 := pushInstructions(INS1, IST0)       /\
+           CNT1 := CNT0 [AmbitStack: AMST]            /\
+           CNT2 := CNT1 [Instructions: INS0]          /\
+           CNT3 := CNT2 [InstructionsStack: IST1]     /\
+           APPZ := APP0 [Context: CNT3]                .
+
+    eq enterContext(APP0) = enterContext(APP0, adnil, innil) .
+    eq enterAmbit(APP0) = enterAmbit(APP0, adnil, innil) .
+
+    ceq exitContext(APP0) = APPZ
+        if CNT0 := APP0 [Context]            /\
+           CTS0 := APP0 [ContextStack]       /\
+           CTS1 := popContext(CTS0)          /\
+           CNT1 := topContext(CTS0)          /\
+           APP1 := APP0 [Context: CNT1]      /\
+           APP2 := APP1 [ContextStack: CTS1] /\
+           APPZ := deleteContext(APP2, CNT0)  .
+
+    ceq exitAmbit(APP0) = APPZ
+        if CNT0 := APP0 [Context]                 /\
+           AMBT := topAmbit(CNT0 [AmbitStack])    /\
+           AMST := popAmbit(CNT0 [AmbitStack])    /\
+           IST0 := CNT0 [InstructionsStack]       /\
+           IST1 := popInstructions(IST0)          /\
+           INS0 := topInstructions(IST0)          /\
+           CNT1 := CNT0 [AmbitStack: AMST]        /\
+           CNT2 := CNT1 [Instructions: INS0]      /\
+           CNT3 := CNT2 [InstructionsStack: IST1] /\
+           APP1 := APP0 [Context: CNT3]           /\
+           APPZ := deleteAmbit(APP1, AMBT)         .
+
+    *** TODO: Work in progress...
+    --- deleteContext
+    --- deleteAmbit
+    *** ...
+
+    *** |================================================================================|
+    *** | Equations (Evaluation)                                                         |
+    *** |================================================================================|
+
+    eq eval(APP0, NLIT) = evr(APP0, psval(0)) .
+    eq eval(APP0, BLIT) = evr(APP0, bsval(toBool(BLIT))) .
+    eq eval(APP0, CLIT) = evr(APP0, csval(toString(CLIT))) .
+    eq eval(APP0, SLIT) = evr(APP0, obj(1, stringType, odt(toString(SLIT)))) .
+    eq eval(APP0, ILIT) = evr(APP0, isval(toInt(ILIT))) .
+    eq eval(APP0, RLIT) = evr(APP0, rsval(toFloat(RLIT))) .
+    eq eval(APP0, HLIT) = evr(APP0, isval(toInt(HLIT))) .
+    eq eval(APP0, TYID) = evalIdentifier(APP0, string(TYID)) .
+    eq eval(APP0, IDTF) = evalIdentifier(APP0, string(IDTF)) .
+
+    *** TODO: Work in progress...
+    --- eval
+    --- locate
+    *** ...
+
+    ceq evalIdentifier(APP0, STR0) =
+        if (VAL0) == void then
+            if isBuiltInIdentifier(STR0) then
+                evr(APP0, zval(STR0))
+            else
+                evalIdentifierIfRType(APP0, STR0)
+            fi
+        else
+            evalIdentifierIfOData(APP0, VAL0, STR0)
+        fi
+        if VAL0 := APP0 [RegPtr] .
+
+    eq evalIdentifierIfRType(APP0, STR0) =
+        if isReservedType(STR0) then
+            evr(APP0, tval(toReservedType(STR0)))
+        else
+            evalIdentifierIfType(APP0, STR0)
+        fi .
+
+    ceq evalIdentifierIfType(APP0, STR0) =
+        if STR1 == "" then
+            evalIdentifierIfData(APP0, STR0)
+        else
+            evr(APP0, tval(STR1))
+        fi
+        if STR1 := findType(APP0, STR0) .
+
+    ceq evalIdentifierIfData(APP0, STR0) =
+        if AMDT == adnil then
+            evalIdentifierIfFunc(APP0, STR0)
+        else
+            evalAmbitData(APP0, AMDT)
+        fi
+        if CNT0 := APP0 [Context] /\
+           AMST := CNT0 [AmbitStack] /\
+           AMDT := getData(STR0, AMST) .
+
+    ceq evalIdentifierIfFunc(APP0, STR0) =
+        if STR1 == "" then
+            evalIdentifierIfGlobal(APP0, STR0)
+        else
+            evr(APP0, obj(1, functionType, odt(STR1)))
+        fi
+        if STR1 := findFunc(APP0, STR0) .
+
+    ceq evalIdentifierIfGlobal(APP0, STR0) =
+        if AMDT == adnil then
+            evalSymbolNotFoundError(APP0, "evalIdentifierIfGlobal", STR0)
+        else
+            evalAmbitData(APP0, AMDT)
+        fi
+        if AMDT := getData(STR0, APP0 [Ambit]) .
+
+    ceq evalIdentifierIfOData(APP0, VAL0, STR0) =
+        if VAL1 == void then
+            evalIdentifierIfOFunc(APP0, VAL0, STR0)
+        else
+            evr(APP0, VAL1)
+        fi
+        if VAL1 := findField(APP0, VAL0, STR0) .
+
+    ceq evalIdentifierIfOFunc(APP0, VAL0, STR0) =
+        if VAL1 == void then
+            evalSymbolNotFoundError(APP0, "evalIdentifierIfOFunc", STR0)
+        else
+            evr(APP0, VAL1)
+        fi
+        if VAL1 := findMethod(APP0, VAL0, STR0) .
+
+    eq evalAmbitData(APP0, data(STR0, B, STR1, psval(N))) = evr(APP0, ival(N, B, STR1, getMemData(APP0, N), "")) .
+    eq evalAmbitData(APP0, data(STR0, B, STR1, pdval(N))) = evr(APP0, ival(N, B, STR1, getMemData(APP0, N), "")) .
+    eq evalAmbitData(APP0, data(STR0, B, STR1, BVAL)) = evr(APP0, ival(STR0, B, STR1, BVAL, "")) .
+    eq evalAmbitData(APP0, AMDT) = evalInvalidAmbitDataError(APP0, "evalAmbitData") [owise] .
+
+    *** |================================================================================|
+    *** | Equations                                                                      |
+    *** |================================================================================|
+
+    *** TODO: Work in progress...
+    --- TODO: Complete the context/ambit delete...
+    op deleteContext : Application Context -> Application .
+    eq deleteContext(APP0, CNT0) = APP0 .
+
+    op deleteAmbit : Application Ambit -> Application .
+    eq deleteAmbit(APP0, AMBT) = APP0 .
+    --- ...
+
+    --- TODO: Complete the execute statements operations...
+    eq execute(APP0, break ;) = APP0 .
+    eq execute(APP0, continue ;) = APP0 .
+    eq execute(APP0, return VALEXP ;) = APP0 .
+    eq execute(APP0, yield VALEXP ;) = APP0 .
+    eq execute(APP0, throw VALEXP ;) = APP0 .
+    eq execute(APP0, const EXPR ;) = APP0 .
+    eq execute(APP0, var EXPR ;) = APP0 .
+    eq execute(APP0, if CONCND BORS) = APP0 .
+    eq execute(APP0, if CONCND BORS else BORS') = APP0 .
+    eq execute(APP0, switch SWCVAR BOCSTS) = APP0 .
+    eq execute(APP0, while CONCND BORS) = APP0 .
+    eq execute(APP0, do BORS while CONCND ;) = APP0 .
+    eq execute(APP0, repeat BORS until CONCND ;) = APP0 .
+    eq execute(APP0, for FCNPRM BORS) = APP0 .
+    eq execute(APP0, for FECVAR BORS) = APP0 .
+    eq execute(APP0, try BORS catch CTCVAR BORS') = APP0 .
+    eq execute(APP0, try BORS catch CTCVAR BORS' finally BORS'') = APP0 .
+    eq execute(APP0, BORS) = APP0 [owise] .
+    --- ...
+
+    --- TODO: Complete the find fields operations ...
+    op findField : Application Value String -> Value .
+    op findMethod : Application Value String -> Value .
+    eq findField(APP0, VAL0, STR0) = void [owise] .
+    eq findMethod(APP0, VAL0, STR0) = void [owise] .
+    --- ...
+
+    op makeCall : Application Value Value -> EvalResult .
+    op makeFuncCall : Application Value Value -> EvalResult .
+    op makeFuncCall : Application FunctionItem Value -> EvalResult .
+    op makeMethodCall : Application Value Value Value -> EvalResult .
+    op makeBuiltInFuncCall : Application String Value -> EvalResult .
+
+    ceq makeCall(APP0, VAL0, VAL1) =
+        if (VAL2) == void then
+            makeFuncCall(APP0, VAL0, VAL1)
+        else
+            makeMethodCall(APP0, VAL0, VAL1, VAL2)
+        fi
+        if VAL2 := APP0 [RegPtr] .
+
+    eq makeFuncCall(APP0, zval(STR0), VAL0) = makeBuiltInFuncCall(APP0, STR0, VAL0) .
+    eq makeFuncCall(APP0, obj(N, STR0, odt(STR1)), VAL0) = makeFuncCall(APP0, getFunc(APP0, STR1), VAL0) .
+    --- TODO: Complete the lambda calls...
+    eq makeFuncCall(APP0, obj(N, STR0, odt(N', BVLS)), VAL0) = evr(APP0, void) .
+    --- ...
+    eq makeFuncCall(APP0, ival(N, B, STR1, VAL0, ""), VAL1) = makeFuncCall(APP0, VAL0, VAL1) .
+    eq makeFuncCall(APP0, ival(STR0, B, STR1, VAL0, ""), VAL1) = makeFuncCall(APP0, VAL0, VAL1) .
+    eq makeFuncCall(APP0, VAL0, VAL1) = evalInvalidFunctionCallError(APP0, "makeFuncCall") [owise] .
+
+    eq makeFuncCall(APP0, finil, VAL0) = evalFunctionNotFoundError(APP0, "makeFuncCall") .
+    ceq makeFuncCall(APP0, FNCI, VAL0) =
+        if doesItFit(APP0, STR1, VAL1) then
+            evr(APPZ, VAL1)
+        else
+            evalInvalidReturnValueError(APPZ, "makeFuncCall")
+        fi
+        if AMBT := makeAmbit(APP0, FNCI, VAL0)       /\
+           INS0 := instr(getStatements(FNCI [Code])) /\
+           APP1 := enterContext(APP0, AMBT, INS0)    /\
+           APP2 := saveCallParams(APP1, FNCI, VAL0)  /\
+           CNMD := APP2 [ContextMode]                /\
+           APP3 := APP2 [ContextMode: CntModeNormal] /\
+           APP4 := execute(APP3)                     /\
+           VAL1 := APP4 [RegRet]                     /\
+           APP5 := APP4 [RegRet: void]               /\
+           APPZ := APP5 [ContextMode: CNMD]          /\
+           PRGM := APPZ [Program]                    /\
+           STR0 := FNCI [ReturnType]                 /\
+           STR1 := checkAliases(PRGM [Alias], STR0)   .
+
+    --- TODO: Complete the method calls...
+    eq makeMethodCall(APP0, VAL0, VAL1, VAL2) = evalInvalidMethodCallError(APP0, "makeMethodCall") [owise] .
+    --- ...
+
+    eq makeBuiltInFuncCall(APP0, "print", VAL0) = makePrintCall(APP0, VAL0) .
+    eq makeBuiltInFuncCall(APP0, STR0, VAL0) = evalFuncNotImplError(APP0, "makeBuiltInFuncCall", STR0) [owise] .
+
+    --- TODO: Complete the ambit creation...
+    op makeAmbit : Application FunctionItem Value -> Ambit .
+    eq makeAmbit(APP0, FNCI, VAL0) = adnil .
+    --- ...
+
+    op saveCallParams : Application FunctionItem Value -> Application .
+    ceq saveCallParams(APP0, FNCI, VAL0) = APP0 [Context: CNT1]
+        if CNT0 := APP0 [Context]                   /\
+           REG0 := CNT0 [Registers]                 /\
+           REG1 := REG0 [PrmLst: FNCI [Parameters]] /\
+           REG2 := REG0 [PrmVls: VAL0]              /\
+           CNT1 := CNT0 [Registers: REG2]            .
+
+    ceq eval(APP0, EXPR , EXP1) = evr(APPZ, VAL3)
+        if evr(APP1, VAL0) := eval(APP0, EXPR)       /\
+           evr(APPZ, VAL1) := eval(APP1, EXP1)       /\
+           VAL3            := joinValues(VAL0, VAL1)  .
+
+    ceq eval(APP0, VAREXP ()) = makeCall(APP1, VAL0, void)
+        if evr(APP1, VAL0) := eval(APP0, VAREXP) .
+
+    ceq eval(APP0, VAREXP (EXPR)) = makeCall(APP1, VAL0, VAL1)
+        if evr(APP1, VAL0) := eval(APP0, VAREXP) /\
+           evr(APP2, VAL1) := eval(APP1, EXPR)    .
+
+    --- TODO: Complete the evaluation operations...
+    ---(
+    op `(_`) : MatchExpression -> ParametersExpression [ctor prec 1] .
+    op `(_`) : FunctionParameter -> ParametersExpression [ctor prec 1] .
+    op `(_`) : SequenceOfExpressions -> ParametersExpression [ctor prec 1] .
+    op ref_ : MatchExpression -> ByRefFunctionParameter [ctor prec 38].
+    op _... : Identifier -> ByValFunctionParameter [ctor prec 38].
+    ---)
+    --- ...
+
+    --- TODO: Complete the evaluation operations...
+    eq eval(APP0, EXPR [EXP1]) = evr(APP0, void) .
+    ---(
+    op _`[_`] : ContainerExpression ValueExpression -> ContainerAccessExpression
+    op _`[_`] : ObjectExpression ValueExpression -> ContainerAccessExpression
+    op _`[_`] : TupleExpression ValueExpression -> ContainerAccessExpression
+    op _`[_`] : ListExpression ValueExpression -> ContainerAccessExpression
+    op _`[_`] : TypeIdentifier ValueExpression -> ContainerAccessExpression
+    ---)
+    eq eval(APP0, LSTEXP [INTEXP : INTEXP]) = evr(APP0, void) .
+    eq eval(APP0, LSTEXP [INTEXP : INTEXP : INTEXP]) = evr(APP0, void) .
+    eq eval(APP0, VALEXP in CNTEXP) = evr(APP0, void) .
+    eq eval(APP0, VALEXP as TYID) = evr(APP0, void) .
+    eq eval(APP0, VALEXP is TYID) = evr(APP0, void) .
+    ---(
+    op _++ : NumericExpression -> NumericExpression
+    op _-- : NumericExpression -> NumericExpression
+    op ++_ : NumericExpression -> NumericExpression
+    op --_ : NumericExpression -> NumericExpression
+
+    op +_ : NumericExpression -> NumericExpression
+    op -_ : NumericExpression -> NumericExpression
+
+    op _*_ : NumericExpression NumericExpression -> NumericExpression
+    op _/_ : NumericExpression NumericExpression -> NumericExpression
+    op _%_ : NumericExpression NumericExpression -> NumericExpression
+    op _+_ : NumericExpression NumericExpression -> NumericExpression
+    op _-_ : NumericExpression NumericExpression -> NumericExpression
+
+    op _<_ : ValueExpression ValueExpression -> BooleanExpression
+    op _<=_ : ValueExpression ValueExpression -> BooleanExpression
+    op _>_ : ValueExpression ValueExpression -> BooleanExpression
+    op _>=_ : ValueExpression ValueExpression -> BooleanExpression
+    op _==_ : ValueExpression ValueExpression -> BooleanExpression
+    op _!=_ : ValueExpression ValueExpression -> BooleanExpression
+    op _<>_ : ValueExpression ValueExpression -> BooleanExpression
+
+    op !_ : BooleanExpression -> BooleanExpression
+    op not_ : BooleanExpression -> BooleanExpression
+    op _&&_ : BooleanExpression BooleanExpression -> BooleanExpression
+    op _and_ : BooleanExpression BooleanExpression -> BooleanExpression
+    op _xor_ : BooleanExpression BooleanExpression -> BooleanExpression
+    op _||_ : BooleanExpression BooleanExpression -> BooleanExpression
+    op _or_ : BooleanExpression BooleanExpression -> BooleanExpression
+
+    op ~_ : IntegerExpression -> IntegerExpression
+    op _<<_ : IntegerExpression IntegerExpression -> IntegerExpression
+    op _>>_ : IntegerExpression IntegerExpression -> IntegerExpression
+    op _&_ : IntegerExpression IntegerExpression -> IntegerExpression
+    op _^_ : IntegerExpression IntegerExpression -> IntegerExpression
+    op _|_ : IntegerExpression IntegerExpression -> IntegerExpression
+
+    op _+=_ : VariableExpression ValueExpression -> VariableExpression
+    op _-=_ : VariableExpression ValueExpression -> VariableExpression
+    op _*=_ : VariableExpression ValueExpression -> VariableExpression
+    op _/=_ : VariableExpression ValueExpression -> VariableExpression
+    op _%=_ : VariableExpression ValueExpression -> VariableExpression
+    op _<<=_ : VariableExpression ValueExpression -> VariableExpression
+    op _>>=_ : VariableExpression ValueExpression -> VariableExpression
+    op _&=_ : VariableExpression ValueExpression -> VariableExpression
+    op _^=_ : VariableExpression ValueExpression -> VariableExpression
+    op _|=_ : VariableExpression ValueExpression -> VariableExpression
+
+    op _?_:_ : BooleanExpression ValueExpression ValueExpression -> ValueExpression
+    op _._ : ValueExpression Identifier -> MemberAccessExpression
+    op new__ : TypeIdentifier CallParametersExpression -> VariableExpression
+
+    op _=>_ : FunctionParametersExpression BlockOfStatements -> LambdaExpression
+    op self : -> SelfObjectExpression
+    op base : -> BaseObjectExpression
+    op _`[_`] : BaseObjectExpression TypeIdentifier -> ObjectExpression
+    ---)
+    eq eval(APP0, EXPR) = evalExprNotSupportedError(APP0, "eval") [owise] .
+    --- ...
+    *** ...
+
+endfm

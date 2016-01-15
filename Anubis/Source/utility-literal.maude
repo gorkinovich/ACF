@@ -1,0 +1,287 @@
+--- **************************************************************************************
+--- * Anubis Programming Language
+--- * Copyright (c) 2014-2015 Gorka Suárez García
+--- *
+--- * Permission is hereby granted, free of charge, to any person obtaining a copy
+--- * of this software and associated documentation files (the "Software"), to deal
+--- * in the Software without restriction, including without limitation the rights
+--- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+--- * copies of the Software, and to permit persons to whom the Software is
+--- * furnished to do so, subject to the following conditions:
+--- *
+--- * The above copyright notice and this permission notice shall be included in
+--- * all copies or substantial portions of the Software.
+--- *
+--- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+--- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+--- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+--- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+--- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+--- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+--- * DEALINGS IN THE SOFTWARE.
+--- **************************************************************************************
+
+--- |************************************************************************************|
+--- | ANUBIS-UTILITY-LITERAL: This module contains utility operators.                    |
+--- |************************************************************************************|
+
+fmod ANUBIS-UTILITY-LITERAL is
+    protecting QID .
+    protecting ANUBIS-UTILITY-STRING .
+
+    *** |================================================================================|
+    *** | Sorts                                                                          |
+    *** |================================================================================|
+
+    sort StringLiteralContainer .
+
+    *** |================================================================================|
+    *** | Subsorts                                                                       |
+    *** |================================================================================|
+
+    subsort StringLiteralContainer < Qid .
+
+    *** |================================================================================|
+    *** | Operators                                                                      |
+    *** |================================================================================|
+
+    op l : String -> StringLiteralContainer [ctor] .
+
+    *** |================================================================================|
+    *** | Operators (Functions)                                                          |
+    *** |================================================================================|
+
+    op parseAndSkipPlus : Qid -> String .
+    op parseChar : Qid -> String .
+    op parseString : Qid -> String .
+    op parseString : StringLiteralContainer -> String .
+
+    op isEscapeCode : Qid -> Bool .
+    op isAsciiCode : Qid -> Bool .
+    op isUnicodeCode : Qid -> Bool .
+
+    op isValidNull : Qid -> Bool .
+    op isValidBool : Qid -> Bool .
+    op isValidChar : Qid -> Bool .
+    op isValidString : Qid -> Bool .
+    op isValidInteger : Qid -> Bool .
+    op isValidReal : Qid -> Bool .
+    op isValidHexadecimal : Qid -> Bool .
+
+    op isEscapeCode : String -> Bool .
+    op isAsciiCode : String -> Bool .
+    op isUnicodeCode : String -> Bool .
+
+    op isValidNull : String -> Bool .
+    op isValidBool : String -> Bool .
+    op isValidChar : String -> Bool .
+    op isValidString : String -> Bool .
+    op isValidString' : String Nat Nat -> Bool .
+    op isValidInteger : String -> Bool .
+    op isValidInteger' : String Nat Nat Nat -> Bool .
+    op isValidReal : String -> Bool .
+    op isValidReal' : String Nat Nat Nat -> Bool .
+    op isValidHexadecimal : String -> Bool .
+
+    *** |================================================================================|
+    *** | Variables                                                                      |
+    *** |================================================================================|
+
+    var ID : Qid .
+    vars S C : String .
+    vars N NIDX NEND : Nat .
+
+    *** |================================================================================|
+    *** | Equations (Qid)                                                                |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // We'll use this function to skip the plus sign inside a literal.
+    --- //--------------------------------------------------------------------------------
+
+    ceq parseAndSkipPlus(ID) =
+        if first(S) == "+" then
+            skip(S, 1)
+        else
+            S
+        fi
+        if S := string(ID) .
+
+    --- //--------------------------------------------------------------------------------
+    --- // We'll assume that character sequences starts and ends with the single quote.
+    --- // If the parameter doesn't follow this rule, we'll return an empty string.
+    --- //--------------------------------------------------------------------------------
+
+    ceq parseChar(ID) =
+        if (first(S) == "\'") and (last(S) == "\'") then
+            removeFirst(removeLast(S))
+        else
+            ""
+        fi
+        if S := string(ID) .
+
+    --- //--------------------------------------------------------------------------------
+    --- // We'll assume that character sequences starts and ends with the double quote.
+    --- // If the parameter doesn't follow this rule, we'll return an empty string.
+    --- //--------------------------------------------------------------------------------
+
+    eq parseString(l(S)) = S .
+
+    ceq parseString(ID) =
+        if (first(S) == "\"") and (last(S) == "\"") then
+            removeFirst(removeLast(S))
+        else
+            "\\e"
+        fi
+        if S := string(ID) .
+
+    --- //--------------------------------------------------------------------------------
+    --- // All these functions use another version that needs a string as parameter.
+    --- //--------------------------------------------------------------------------------
+
+    eq isEscapeCode(ID) = isEscapeCode(parseChar(ID)) .
+    eq isAsciiCode(ID) = isAsciiCode(parseChar(ID)) .
+    eq isUnicodeCode(ID) = isAsciiCode(parseChar(ID)) .
+
+    eq isValidNull(ID) = isValidNull(string(ID)) .
+    eq isValidBool(ID) = isValidBool(string(ID)) .
+    eq isValidChar(ID) = isValidChar(parseChar(ID)) .
+    eq isValidString(ID) = isValidString(parseString(ID)) .
+    eq isValidInteger(ID) = isValidInteger(string(ID)) .
+    eq isValidReal(ID) = isValidReal(string(ID)) .
+    eq isValidHexadecimal(ID) = isValidHexadecimal(string(ID)) .
+
+    *** |================================================================================|
+    *** | Equations (String)                                                             |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // Escape codes are string with only 2 characters and we have a limited set of
+    --- // supported ones: \0 \\ \' \" \n \t \r
+    --- //--------------------------------------------------------------------------------
+
+    eq isEscapeCode(S) = (length(S) == 2) and (first(S) == "\\") and
+        ((charAt(S, 1) == "0") or (charAt(S, 1) == "\\") or (charAt(S, 1) == "\'") or
+         (charAt(S, 1) == "\"") or (charAt(S, 1) == "n") or (charAt(S, 1) == "t") or
+         (charAt(S, 1) == "r")) .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Ascii escape code follows this format: \x# \x## (# <- 0..F)
+    --- //--------------------------------------------------------------------------------
+
+    ceq isAsciiCode(S) = ((N >= 3) and (N <= 4)) and (first(S, 2) == "\\x") and
+        containsOnlyHexDigits(last(S, sd(N, 2)))
+        if N := length(S) .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Unicode escape code follows this format: \u# \u## \u### \u#### (# <- 0..F)
+    --- //--------------------------------------------------------------------------------
+
+    ceq isUnicodeCode(S) = ((N >= 3) and (N <= 6)) and (first(S, 2) == "\\u") and
+        containsOnlyHexDigits(last(S, sd(N, 2)))
+        if N := length(S) .
+
+    --- //--------------------------------------------------------------------------------
+    --- // A null literal can be only 2 options: null or nil.
+    --- //--------------------------------------------------------------------------------
+
+    eq isValidNull("null") = true .
+    eq isValidNull("nil") = true .
+    eq isValidNull(S) = false [owise] .
+
+    --- //--------------------------------------------------------------------------------
+    --- // A boolean literal can be only 2 options: true or false.
+    --- //--------------------------------------------------------------------------------
+
+    eq isValidBool("true") = true .
+    eq isValidBool("false") = true .
+    eq isValidBool(S) = false [owise] .
+
+    --- //--------------------------------------------------------------------------------
+    --- // A character literal can be only a string of one character or an escape code.
+    --- //--------------------------------------------------------------------------------
+
+    eq isValidChar(S) = ((length(S) == 1) and (S =/= "'")) or isEscapeCode(S) or
+                        isAsciiCode(S) or isUnicodeCode(S) .
+
+    --- //--------------------------------------------------------------------------------
+    --- // A string literal must be a string of variable length that only contains
+    --- // characters and the suported escape codes of the language.
+    --- //--------------------------------------------------------------------------------
+
+    eq isValidString(S) = isValidString'(S, 0, length(S)) .
+    eq isValidString'(S, NIDX, NEND) =
+        if NIDX >= NEND then
+            true
+        else if charAt(S, NIDX) =/= "\\" then
+            isValidString'(S, s(NIDX), NEND)
+        else if isEscapeCode(substr(S, NIDX, 2)) then
+            isValidString'(S, NIDX + 2, NEND)
+        else if isAsciiCode(substr(S, NIDX, 3)) or isUnicodeCode(substr(S, NIDX, 3)) then
+            isValidString'(S, NIDX + 3, NEND)
+        else if isAsciiCode(substr(S, NIDX, 4)) or isUnicodeCode(substr(S, NIDX, 4)) then
+            isValidString'(S, NIDX + 4, NEND)
+        else if isUnicodeCode(substr(S, NIDX, 5)) then
+            isValidString'(S, NIDX + 5, NEND)
+        else if isUnicodeCode(substr(S, NIDX, 6)) then
+            isValidString'(S, NIDX + 6, NEND)
+        else
+            false
+        fi fi fi fi fi fi fi .
+
+    --- //--------------------------------------------------------------------------------
+    --- // An integer literal is a string that only contains digits and that can start
+    --- // with the plus or minus symbol if you wish.
+    --- //--------------------------------------------------------------------------------
+
+    eq isValidInteger(S) = isValidInteger'(S, 0, length(S), 0) .
+    ceq isValidInteger'(S, NIDX, NEND, N) =
+        if NIDX >= NEND then
+            true
+        else if (N == 0) and ((C == "+") or (C == "-") or isDigit(C)) then
+            isValidInteger'(S, s(NIDX), NEND, s(N))
+        else if isDigit(C) then
+            isValidInteger'(S, s(NIDX), NEND, N)
+        else
+            false
+        fi fi fi
+        if C := charAt(S, NIDX) .
+
+    --- //--------------------------------------------------------------------------------
+    --- // A real literal must check first if the string is an integer literal, if not
+    --- // we'll check that follows the real numbers format: [+|-]#.#[{e|E}[+|-]#]
+    --- //--------------------------------------------------------------------------------
+
+    eq isValidReal(S) =
+        if isValidInteger(S) then
+            false
+        else
+            isValidReal'(S, 0, length(S), 0)
+        fi .
+    ceq isValidReal'(S, NIDX, NEND, N) =
+        if NIDX >= NEND then
+            true
+        else if (N == 0) and ((C == "+") or (C == "-") or isDigit(C)) then
+            isValidReal'(S, s(NIDX), NEND, s(N))
+        else if (N == 1) and (C == ".") then
+            isValidReal'(S, s(NIDX), NEND, s(N))
+        else if (N == 2) and ((C == "e") or (C == "E")) then
+            isValidReal'(S, s(NIDX), NEND, s(N))
+        else if (N == 3) and ((C == "+") or (C == "-") or isDigit(C)) then
+            isValidReal'(S, s(NIDX), NEND, s(N))
+        else if isDigit(C) then
+            isValidReal'(S, s(NIDX), NEND, N)
+        else
+            false
+        fi fi fi fi fi fi
+        if C := charAt(S, NIDX) .
+
+    --- //--------------------------------------------------------------------------------
+    --- // A hexadecimal literal must start with the "0x" string code and contain only
+    --- // hexadecimal characters.
+    --- //--------------------------------------------------------------------------------
+
+    eq isValidHexadecimal(S) = ((first(S, 2) == "0x") or (first(S, 2) == "0X")) and
+        containsOnlyHexDigits(last(S, sd(length(S), 2))) .
+
+endfm

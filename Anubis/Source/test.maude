@@ -1,0 +1,588 @@
+--- **************************************************************************************
+--- * Anubis Programming Language
+--- * Copyright (c) 2014-2015 Gorka Suárez García
+--- *
+--- * Permission is hereby granted, free of charge, to any person obtaining a copy
+--- * of this software and associated documentation files (the "Software"), to deal
+--- * in the Software without restriction, including without limitation the rights
+--- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+--- * copies of the Software, and to permit persons to whom the Software is
+--- * furnished to do so, subject to the following conditions:
+--- *
+--- * The above copyright notice and this permission notice shall be included in
+--- * all copies or substantial portions of the Software.
+--- *
+--- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+--- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+--- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+--- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+--- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+--- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+--- * DEALINGS IN THE SOFTWARE.
+--- **************************************************************************************
+
+---(======================================================================================
+
+              |============================================================|
+              | ATTENTION: To execute the model checker functions inside   |
+              |            Maude the modules must be loaded in this order. |
+              |============================================================|
+
+load model-checker.maude
+load full-maude.maude
+load test.maude
+
+set print attribute on .
+set print attribute newline on .
+set print format on .
+
+=========================================================================================)
+
+--- **************************************************************************************
+--- * LINKS:
+--- * + Maude Manual: http://maude.cs.uiuc.edu/maude2-manual/html/maude-manual.html
+--- **************************************************************************************
+
+load anubis.maude
+
+--- |************************************************************************************|
+--- | ANUBIS-TEST: This module contains code to test the project.                        |
+--- |************************************************************************************|
+
+mod ANUBIS-TEST is
+    protecting ANUBIS-SYNTAX .
+    protecting ANUBIS-PARSER .
+    protecting ANUBIS-RUNNER .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Conversion
+    --- //--------------------------------------------------------------------------------
+
+    ---(
+    protecting LIST{Bool} .
+    protecting LIST{Int} .
+    protecting LIST{Float} .
+    protecting LIST{String} .
+
+    op test10b : -> List{Bool} .
+    op test10i : -> List{Int} .
+    op test10f : -> List{Float} .
+    op test10s : -> List{String} .
+
+    eq test10b =
+        toBool('null) toBool('nil)
+        toBool('true) toBool('false)
+        toBool(''a') toBool(''\n')
+        toBool(''\x63') toBool(''\u6363')
+        toBool('"hola")
+        toBool('+123) toBool('-123)
+        toBool('0xABCDEF)
+        toBool('+1.2e+3) toBool('-1.2e-3)
+        toBool('123a567) .
+
+    eq test10i =
+        toInt('null) toInt('nil)
+        toInt('true) toInt('false)
+        toInt(''a') toInt(''\n')
+        toInt(''\x63') toInt(''\u6363')
+        toInt('"hola") toInt('"1000")
+        toInt('+123) toInt('-123)
+        toInt('0xABCDEF)
+        toInt('+1.2e+3) toInt('-1.2e-3)
+        toInt('123a567) .
+
+    eq test10f =
+        toFloat('null) toFloat('nil)
+        toFloat('true) toFloat('false)
+        toFloat(''a') toFloat(''\n')
+        toFloat(''\x63') toFloat(''\u6363')
+        toFloat('"hola") toFloat('"3.14")
+        toFloat('+123) toFloat('-123)
+        toFloat('0xABCDEF)
+        toFloat('+1.2e+3) toFloat('-1.2e-3)
+        toFloat('123a567) .
+
+    eq test10s =
+        toString('null) toString('nil)
+        toString('true) toString('false)
+        toString(''a') toString(''\n')
+        toString(''\x63') toString(''\u6363')
+        toString('"hola")
+        toString('+123) toString('-123)
+        toString('0xABCDEF)
+        toString('+1.2e+3) toString('-1.2e-3)
+        toString('123a567) .
+    ---)
+
+    --- //--------------------------------------------------------------------------------
+    --- // Bool
+    --- //--------------------------------------------------------------------------------
+
+    op boolT00 : -> Bool .
+    eq boolT00 = isUnderscore("_") .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Expression
+    --- //--------------------------------------------------------------------------------
+
+    op expT00 : -> Expression .
+    eq expT00 = 'a == 'b .
+
+    --- //--------------------------------------------------------------------------------
+    --- // [Statements]
+    --- //--------------------------------------------------------------------------------
+
+    ops stErr00 stErr01 stErr02 : -> Statements .
+    eq stErr00 = 'a ; for(var 'i = '1 : 'l) { 'show('i) ; } .
+    eq stErr01 = 'a ; try { 'f() ; } catch(var 'e = '1) { 'p('e) ; } finally { 'g() ; } .
+    eq stErr02 = 'a ; try {} catch (< 'e -> 't, 'a, 'b :: 'bs >) {} .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Statements
+    --- //--------------------------------------------------------------------------------
+
+    ops stZ00 stZ01 stT06a stT06b : -> Statements .
+
+    eq stZ00 =  var 'x = base['bool] . 'f () ; .
+
+    eq stZ01 = const 'a = '1 ;
+               var 'b = 'a ;
+               func 'f() {}
+               ctor () {}
+               ctor ('a) {}
+               dtor () {}
+               [-] const 'a = '1 ;
+               [-] var 'b = 'a ;
+               [+] ctor () {}
+               [-] ctor ('a) {}
+               [@] func 'f() {}
+               prop 'p : 't { get }
+               prop 'p : 't { get set }
+               prop 'p : 't { get { return 'b ; } }
+               prop 'p : 't { get { return 'b ; } set { 'b = 'value ; } }
+               [+] prop 'p : 't { get }
+               [+] prop 'p : 't { get set }
+               [+] prop 'p : 't { get { return 'b ; } }
+               [+] prop 'p : 't { get { return 'b ; } set { 'b = 'value ; } } .
+
+    eq stT06a = 'a ;
+        switch('a) {
+            case '1 : 'a ; 'b ; break ;
+            case '2 : 'c ; 'd ; break ;
+            case '3 : 'e ; 'f ; break ;
+            default : 'g ; { 'h ; 'j = 'h * '2 ; }
+        }
+        while('a < 'b) 'f() ;
+        while('a < 'b) { 'n ++ ; 'f('n) ; }
+        do { 'a() ; } while('false) ;
+        repeat { 'b() ; } until('b >= 'c) ; .
+
+    eq stT06b = 'a ;
+        for(var 'i = '0 ; 'i < '10 ; ++ 'i) { 'show('i) ; }
+        for(var 'i : 'l) { 'show('i) ; }
+        try { 'f() ; } catch(var 'e) { 'p('e) ; } finally { 'g() ; } .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Statements
+    --- //--------------------------------------------------------------------------------
+
+    ops stT00 stT01 stT02 stT03 stT04 stT05 stT06 stT07 stT08 stT09 : -> Statements .
+    ops stT10 stT11 stT12 stT13 stT14 stT15 stT16 stT17 stT18 stT19 : -> Statements .
+    ops stT20 stT21 stT22 stT23 stT24 stT25 stT26 stT27 stT28 stT29 : -> Statements .
+
+    eq stT00 = 'hola ; 'mundo ; 'adios ; .
+    eq stT01 = { 'hola ; } .
+    eq stT02 = { 'hola ; 'mundo ; 'adios ; } .
+    eq stT03 = { 'hola ; { 'mundo ; } 'adios ; } .
+    eq stT04 = 'a ; 'a ; { 'b ; { 'c ; } 'd ; } 'e ; .
+    eq stT05 = 'a ; { if('a) 'a ; if('b) 'b ; if('c) 'c ; else 'c ;
+               if('d) { 'd1 ; 'd2 ;  } else { 'd3 ; }
+               if('f) { if('f) 'f ; }
+               if('e) { if('e) 'e ; } else 'e ; } .
+               ---if('e) if('e) 'e ; else 'e ; } .
+    eq stT06 = 'a ;
+        switch('a) {
+            case '1 : 'a ; 'b ; break ;
+            case '2 : 'c ; 'd ; break ;
+            case '3 : 'e ; 'f ; break ;
+            default : 'g ; { 'h ; 'j = 'h * '2 ; }
+        }
+        while('a < 'b) 'f() ;
+        while('a < 'b) { 'n ++ ; 'f('n) ; }
+        do { 'a() ; } while('false) ;
+        repeat { 'b() ; } until('b >= 'c) ;
+        for('i = '0 ; 'i < '10 ; ++ 'i) { 'show('i) ; }
+        for('i : 'l) { 'show('i) ; }
+        try { 'f() ; } catch('e) { 'p('e) ; } finally { 'g() ; }
+        for(var 'i = '0 ; 'i < '10 ; ++ 'i) { 'show('i) ; }
+        for(var 'i : 'l) { 'show('i) ; }
+        try { 'f() ; } catch(var 'e) { 'p('e) ; } finally { 'g() ; } .
+    eq stT07 = var 'i = '0, 'x :: 'xs = ['1 .. '10] ; 'i = 'x ; .
+    eq stT08 = 'a ; 'a, 'a ; 'a, 'a, 'a ; .
+    eq stT09 = < 'a, 'a > ; < 'a, 'a, 'a > ; .
+    eq stT10 = ['a] ; ['a, 'a] ; ['a, 'a, 'a] ; .
+    eq stT11 = ['a .. 'a] ; ['a, 'a .. 'a] ; .
+    eq stT12 = 'a :: 'a ; 'a $ 'a ; .
+    eq stT13 = 'a() ; 'a('a) ; 'a('a, 'a) ; 'a('a, 'a, 'a) ; .
+    eq stT14 = 'a['a] ; 'a['a : 'a] ; 'a['a : 'a : 'a] ; .
+    eq stT15 = 'a in 'a ; 'a as 'bool ; 'a is 'bool ; .
+    eq stT16 = 'a ++ ; 'a -- ; ++ 'a ; -- 'a ; + 'a ; - 'a ; 'a * 'a ;
+               'a / 'a ; 'a % 'a ; 'a + 'a ; 'a - 'a ; .
+    eq stT17 = 'a < 'a ; 'a <= 'a ; 'a > 'a ; 'a >= 'a ; 'a == 'a ;
+               'a != 'a ; 'a <> 'a ; .
+    eq stT18 = ! 'a ; not 'a ; 'a && 'a ; 'a and 'a ; 'a xor 'a ;
+               'a || 'a ; 'a or 'a ; .
+    eq stT19 = ~ 'a ; 'a << 'a ; 'a >> 'a ; 'a & 'a ; 'a ^ 'a ; 'a | 'a ; .
+    eq stT20 = 'a = 'a ; 'a += 'a ; 'a -= 'a ; 'a *= 'a ; 'a /= 'a ;
+               'a %= 'a ; 'a <<= 'a ; 'a >>= 'a ; 'a &= 'a ; 'a ^= 'a ;
+               'a |= 'a ; .
+    eq stT21 = 'a ? 'a : 'a ; 'a . 'a ; .
+    eq stT22 = 'a ;
+               var 'x ; var 'x = '1 ; var 'x -> 't = '1 ;
+               var < 'x, 'y > = 'z ; var < 'x, 'y -> 't > = 'z ;
+               var 'x :: 'xs = 'y , 'x -> 't :: 'xs = 'y ;
+               var 'x :: 'xs -> 't = 'y , 'x -> 't :: 'xs -> 't = 'y ;
+               var ('x :: 'xs) -> 't = 'y ;
+               const 'x :: 'xs = 'y , 'x -> 't :: 'xs = 'y ;
+               const 'x :: 'xs -> 't = 'y , 'x -> 't :: 'xs -> 't = 'y ;
+               const ('x :: 'xs) -> 't = 'y ; .
+    eq stT23 = try {} catch (var 'e) {}
+               try {} catch (var 'e -> 't) {}
+               try {} catch (var 'x -> 't :: 'xs ) {}
+               try {} catch (var 'x :: 'xs -> 't) {}
+               try {} catch (var ('x :: 'xs) -> 't) {}
+               try {} catch (var < 'e -> 't, < 'a, 'a, 'a >, 'b :: 'bs >) {} .
+    eq stT24 = try {} catch ('e) {}
+               try {} catch ('x :: 'xs) {}
+               try {} catch (< 'e, < 'a, 'a, 'a >, 'b :: 'bs >) {} .
+    eq stT25 = [ 'x <| 'x <- ['i .. 'j] ] ;
+               [ 'x <| 'x -> 't <- ['i .. 'j] ] ;
+               [ < 'x, 'y > <| < 'x, 'y > <- ['i .. 'j] ] ;
+               [ < 'x, 'y > <| < 'x -> 't, 'y > <- ['i .. 'j] ] ;
+               [ < 'x, 'y > <| < 'x, 'y -> 't > <- ['i .. 'j] ] ;
+               [ < 'x, 'y > <| < 'x -> 't, 'y -> 't > <- ['i .. 'j] ] ;
+               [ 'x :: 'y <| 'x :: 'y <- ['i .. 'j] ] ;
+               [ 'x <| 'x <- ['i .. 'j] <; 'f('x) <; 'y <- ['k .. 'l] ] ;
+               [ 'x <| 'x <- ['i .. 'j] <; 'f('x) <; 'y <- ['k .. 'l] <; 'f2('y) ] ;
+               { 'a : 'a } ; { '"a" : 'a } ;
+               { 'a : 'a, '"a" : 'a } ; { '"a" : 'a, 'a : 'a } ;
+               { 'a : { 'a : 'a } } ; { 'a : < 'a, 'a > } ;
+               { 'a : [ 'a ], 'a : [ 'a, 'a ], 'a : [ 'a, 'a, 'a ] } ;
+               { 'o : { 'a : 'a }, 't : < 'a, 'a >, 'a1 : [ 'a ],
+                 'a2 : [ 'a, 'a ], 'a3 : [ 'a, 'a, 'a ] } ; .
+    eq stT26 = ! 'true ; ! 'false ;
+               'true && 'true ; 'true && 'false ; 'false && 'true ; 'false && 'false ;
+               'true || 'true ; 'true || 'false ; 'false || 'true ; 'false || 'false ;
+               'true xor 'true ; 'true xor 'false ; 'false xor 'true ; 'false xor 'false ;
+               'true && 'a ; 'false && 'a ; 'true || 'a ; 'false || 'a ; .
+    eq stT27 = '+1 ++ ; '-1 ++ ; '+2 -- ; '-2 -- ; ++ '+3 ; ++ '-3 ; -- '+4 ; -- '-4 ;
+               + '+5 ; + '-5 ; - '+6 ; - '-6 ; '20 * '10 ; '20 / '10 ; '20 % '10 ; '20 + '10 ;
+               '20 - '10 ; '20 < '10 ; '20 <= '10 ; '20 > '10 ; '20 >= '10 ; '20 == '10 ;
+               '20 != '10 ; ~ '31 ; '1 << '1 ; '8 >> '1 ; '3 & '1 ; '6 ^ '5 ; '2 | '1 ; .
+
+    var ST : Statements .
+    var ERRST : [Statements] .
+    op checkST : Statements -> Bool .
+    eq checkST(ST) = true .
+    eq checkST(ERRST) = false .
+
+    op stAll : -> Statements .
+    eq stAll = stT00 stT01 stT02 stT03 stT04 stT05 stT06 stT07 stT08 stT09
+               stT10 stT11 stT12 stT13 stT14 stT15 stT16 stT17 stT18 stT19
+               stT20 stT21 stT22 stT23 stT24 stT25 stT26 stT27 .
+
+    op stTest : -> Bool .
+    eq stTest = checkST(stAll) .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Declarations
+    --- //--------------------------------------------------------------------------------
+
+    ops dcT00 dcT01 dcT02 dcT03 dcT04 dcT05 dcT06 dcT07 dcT08 dcT09 : -> Declarations .
+    ops dcT10 dcT11 dcT12 dcT13 dcT14 dcT15 dcT16 dcT17 dcT18 dcT19 : -> Declarations .
+
+    eq dcT00 = include '"f.src" ;
+               var 'i = '0, 'x :: 'xs = ['1 .. '10] ;
+               const 'i = '0, 'x :: 'xs = ['1 .. '10] ;
+               alias 'integer 'int ;
+               alias 'int[] 'IntList ;
+               var 'il -> 'IntList = ['1 .. '10] ; .
+    eq dcT01 = func 'f() {}
+               func 'f('x) {}
+               func 'f('x :: 'xs) {}
+               func 'f(< 'x1, 'x2, 'x3 >) {}
+               func 'f('args ...) {}
+               func 'f(ref 'x) {}
+               func 'f(ref 'x :: 'xs) {}
+               func 'f(ref < 'x1, 'x2, 'x3 >) {} .
+    eq dcT02 = func 'f('x -> 't) {}
+               func 'f('x -> 't :: 'xs) {}
+               func 'f('x :: 'xs -> 't) {}
+               func 'f('x -> 't :: 'xs -> 't) {}
+               func 'f(('x :: 'xs) -> 't) {}
+               func 'f(< 'x1 -> 't, 'x2, 'x3 >) {}
+               func 'f(< 'x1, 'x2 -> 't, 'x3 >) {}
+               func 'f(< 'x1, 'x2, 'x3 -> 't >) {}
+               func 'f(< 'x1 -> 't, 'x2 -> 't, 'x3 >) {}
+               func 'f(< 'x1 -> 't, 'x2, 'x3 -> 't >) {}
+               func 'f(< 'x1, 'x2 -> 't, 'x3 -> 't >) {}
+               func 'f(< 'x1 -> 't, 'x2 -> 't, 'x3 -> 't >) {} .
+    eq dcT03 = func 'f(ref 'x -> 't) {}
+               func 'f(ref 'x -> 't :: 'xs) {}
+               func 'f(ref 'x :: 'xs -> 't) {}
+               func 'f(ref 'x -> 't :: 'xs -> 't) {}
+               func 'f(ref ('x :: 'xs) -> 't) {}
+               func 'f(ref < 'x1 -> 't, 'x2, 'x3 >) {}
+               func 'f(ref < 'x1, 'x2 -> 't, 'x3 >) {}
+               func 'f(ref < 'x1, 'x2, 'x3 -> 't >) {}
+               func 'f(ref < 'x1 -> 't, 'x2 -> 't, 'x3 >) {}
+               func 'f(ref < 'x1 -> 't, 'x2, 'x3 -> 't >) {}
+               func 'f(ref < 'x1, 'x2 -> 't, 'x3 -> 't >) {}
+               func 'f(ref < 'x1 -> 't, 'x2 -> 't, 'x3 -> 't >) {} .
+    eq dcT04 = func 'f('a, 'b) {}
+               func 'f('a, 'b, 'c) {}
+               func 'f(ref 'a) {}
+               func 'f(ref 'a,     'b) {}
+               func 'f(    'a, ref 'b) {}
+               func 'f(ref 'a, ref 'b) {}
+               func 'f(ref 'a,     'b,     'c) {}
+               func 'f(    'a, ref 'b,     'c) {}
+               func 'f(    'a,     'b, ref 'c) {}
+               func 'f(ref 'a, ref 'b,     'c) {}
+               func 'f(ref 'a,     'b, ref 'c) {}
+               func 'f(    'a, ref 'b, ref 'c) {}
+               func 'f(ref 'a, ref 'b, ref 'c) {} .
+    eq dcT05 = func 'f('a -> 't, 'b) {}
+               func 'f('a,       'b -> 't) {}
+               func 'f('a -> 't, 'b -> 't) {}
+               func 'f('a -> 't, 'b -> 't, 'c) {}
+               func 'f('a -> 't, 'b,       'c -> 't) {}
+               func 'f('a,       'b -> 't, 'c -> 't) {}
+               func 'f('a -> 't, 'b -> 't, 'c -> 't) {}
+               func 'f(ref 'a -> 't, ref 'b) {}
+               func 'f(ref 'a,       ref 'b -> 't) {}
+               func 'f(ref 'a -> 't, ref 'b -> 't) {}
+               func 'f(ref 'a -> 't, ref 'b -> 't, ref 'c) {}
+               func 'f(ref 'a -> 't, ref 'b,       ref 'c -> 't) {}
+               func 'f(ref 'a,       ref 'b -> 't, ref 'c -> 't) {} .
+    eq dcT06 = func 'f('args ...) {}
+               func 'f('a = '1) {}
+               func 'f(ref 'a = '1) {}
+               func 'f('a -> 't, ref 'a = '1, 'args ...) {}
+               func 'f('a, 'a -> 't, ref 'a -> 't = '1, 'args ...) {} .
+    eq dcT07 = func 'f() : 't {}
+               func 'f('x) : 't {}
+               func 'f('x :: 'xs) : 't {}
+               func 'f(< 'x1, 'x2, 'x3 >) : 't {}
+               func 'f('args ...) : 't {}
+               func 'f(ref 'x) : 't {}
+               func 'f(ref 'x :: 'xs) : 't {}
+               func 'f(ref < 'x1, 'x2, 'x3 >) : 't {} .
+    eq dcT08 = func 'f('a, 'b) : 't ;
+               func 'f('a, 'b, 'c) : 't ;
+               func 'f('a -> 't, 'b -> 't :: 'bs, < 'c, 'd >, 'args ...) : 't ;
+               func 'f('a -> 't, 'b -> 't :: 'bs, < 'c, 'd >, 'args ...) : 't {} .
+    eq dcT09 = var 'f = () => {} ;
+               var 'f = () => { 'x ; } ;
+               var 'f = ('x) => {} ;
+               var 'f = ('x) => { 'x * 'x ; } ;
+               var 'f = ('x -> 'int, 'y -> 'int) => { 'x * 'y ; } ;
+               var 'f = (ref 'c -> 'int, 'x :: 'xs) => { 'c += 'x ; 'f('c, 'xs) ; } ; .
+    eq dcT10 = class 'c {}
+               class 'c ('s) {}
+               class 'c ('s, 's) {}
+               class 'c ('s, 's, 's) {} .
+    eq dcT11 = class 'c {
+                   const 'a = '1 ;
+                   var 'b = 'a ;
+                   func 'f() {}
+                   ctor () {}
+                   ctor ('a) {}
+                   dtor () {}
+                   [-] const 'a = '1 ;
+                   [-] var 'b = 'a ;
+                   [@+] ctor () {}
+                   [@-] ctor ('a) {}
+                   [@] func 'f() {}
+                   prop 'p : 't { get }
+                   prop 'p : 't { get set }
+                   prop 'p : 't { get { return 'b ; } }
+                   prop 'p : 't { get { return 'b ; } set { 'b = 'value ; } }
+                   [+] prop 'p : 't { get }
+                   [+] prop 'p : 't { get set }
+                   [+] prop 'p : 't { get { return 'b ; } }
+                   [+] prop 'p : 't { get { return 'b ; } set { 'b = 'value ; } }
+               }
+               class 'c ('s, 's, 's) {
+                   const 'a = '1 ;
+                   var 'b = 'a ;
+                   func 'f() {}
+                   ctor () {}
+                   ctor ('a) {}
+                   dtor () {}
+                   [-] const 'a = '1 ;
+                   [-] var 'b = 'a ;
+                   [+] ctor () {}
+                   [-] ctor ('a) {}
+                   [@] func 'f() {}
+                   prop 'p : 't { get }
+                   prop 'p : 't { get set }
+                   prop 'p : 't { get { return 'b ; } }
+                   prop 'p : 't { get { return 'b ; } set { 'b = 'value ; } }
+                   [+] prop 'p : 't { get }
+                   [+] prop 'p : 't { get set }
+                   [+] prop 'p : 't { get { return 'b ; } }
+                   [+] prop 'p : 't { get { return 'b ; } set { 'b = 'value ; } }
+               } .
+
+    var DC : Declarations .
+    var ERRDC : [Declarations] .
+    op checkDC : Declarations -> Bool .
+    eq checkDC(DC) = true .
+    eq checkDC(ERRDC) = false .
+
+    op dcAll : -> Declarations .
+    eq dcAll = dcT00 dcT01 dcT02 dcT04 dcT05 dcT06 dcT07 dcT08 dcT09
+               dcT10 dcT11 .
+
+    op dcTest : -> Bool .
+    eq dcTest = checkDC(dcAll) .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Test
+    --- //--------------------------------------------------------------------------------
+
+    op test : -> Bool .
+    eq test = stTest and dcTest .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Parser
+    --- //--------------------------------------------------------------------------------
+
+    ops file1 file2 file3 : -> SourceFile .
+    eq file1 =
+        "lib1" [>
+            func 'sum ('a, 'b) {
+                return 'a + 'b ;
+            }
+        <] .
+    eq file2 =
+        "lib2" [>
+            func 'mult ('a, 'b) {
+                return 'a * 'b ;
+            }
+        <] .
+    eq file3 =
+        "main" [>
+            'fallo ;
+            include '"lib1" ;
+            include '"lib2" ;
+            func 'main () {
+                var 'a = '1, 'b = '10 ;
+                'print('sum('a, 'b)) ;
+                'print('mul('a, 'b)) ;
+            }
+        <] .
+
+    op prTestZ : -> SourceProject .
+    eq prTestZ = {> file1 <|> file2 <|> file3 <} .
+
+    op prTest : -> SourceProject .
+    eq prTest = {>
+        "lib1" [>
+            func 'sum ('a, 'b) {
+                'print(l("func sum")) ;
+                return 'a + 'b ;
+            }
+        <]
+    <|>
+        "lib2" [>
+            func 'mul ('a, 'b) {
+                'print(l("func mul")) ;
+                return 'a * 'b ;
+            }
+        <]
+    <|>
+        "main" [>
+            include '"lib1" ;
+            include '"lib2" ;
+
+            alias 'integer 'int ;
+            alias 'integer [] 'IntList ;
+
+            const 'PI = '3.14 ;
+            const 'PI2 = '3.14 ;
+            var 'gcount = '0 ;
+            var 'gcount2 = '0 ;
+
+            function 'foo ('a, 'b, 'c) : 'List {
+                'print(l("func foo")) ;
+                return 'a :: 'b :: 'c ;
+            }
+
+            func 'main () {
+                'print(l("func main")) ;
+                var 'a = '1, 'b = '10 ;
+                'print('sum('a, 'b)) ;
+                'print('mul('a, 'b)) ;
+            }
+
+            class 'Foo ('Object, 'Function, 'List) {
+               [@] ctor () { 'print(l("Static Ctor")) ; }
+               ctor () { 'print('"Ctor") ; }
+               dtor () { 'print('"Dtor") ; }
+
+               [-] const 'c1 = '1, 'c2 = '2 ;
+               [-] var 'a -> 'integer = '1, 'b :: 'c, 'd -> 'real :: 'e, 'f :: 'g -> 'real ;
+               [-] var 'h -> 'real :: 'i -> 'real, ('j :: 'k) -> 'real, [ 'l ], [ 'm -> 'real ] ;
+               [-] var [ 'n, 'o -> 'real ], < 'p, 'q -> 'real, 'r > ;
+
+               prop 'p1 : 'Real { get }
+               prop 'p2 : 'Real { get set }
+               prop 'p3 : 'Real { get { return 'd ; } }
+               prop 'p4 : 'Real { get { return 'd ; } set { 'd = 'value ; } }
+
+	            function 'm1 ('a, 'b, 'c) {
+	               'print(l("func Foo.m1")) ;
+	                return 'a :: 'b :: 'c ;
+	            }
+            }
+        <]
+    <} .
+
+    op runPrTest : -> String .
+    eq runPrTest = run("main", prTest) .
+
+    op prHello : -> SourceProject .
+    eq prHello = {> "main" [>
+        func 'main () {
+            'print (l("Hello, world.")) ;
+            'print (l("Goodbye, world.")) ;
+        }
+    <] <} .
+
+    op runHello : -> String .
+    eq runHello = run("main", prHello) .
+
+    var EXPR : Expression .
+    op testEval : Expression -> EvalResult .
+    eq testEval(EXPR) = eval(appCreate(pnil), EXPR) .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Machine
+    --- //--------------------------------------------------------------------------------
+
+    var V : Value .
+    var M : Memory .
+
+    ops mmT00 mmT01 mmT02 : -> Memory .
+
+    eq mmT00 = memAddVal(obj(1, "String", odt("pepe")),
+        memAddVal(obj(1, "String", odt("adios")),
+        memRefInc(1, memAddVal(obj(1, "String", odt("hola")), mcnil)))) .
+
+    ceq mmT01 = M if mav(M, V) := memRefDec(2, mmT00) .
+
+    eq mmT02 = memAddVal(obj(1, "String", odt("juan")), mmT01) .
+
+endm

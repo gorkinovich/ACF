@@ -1,0 +1,246 @@
+--- **************************************************************************************
+--- * Anubis Programming Language
+--- * Copyright (c) 2014-2015 Gorka Suárez García
+--- *
+--- * Permission is hereby granted, free of charge, to any person obtaining a copy
+--- * of this software and associated documentation files (the "Software"), to deal
+--- * in the Software without restriction, including without limitation the rights
+--- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+--- * copies of the Software, and to permit persons to whom the Software is
+--- * furnished to do so, subject to the following conditions:
+--- *
+--- * The above copyright notice and this permission notice shall be included in
+--- * all copies or substantial portions of the Software.
+--- *
+--- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+--- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+--- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+--- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+--- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+--- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+--- * DEALINGS IN THE SOFTWARE.
+--- **************************************************************************************
+
+--- |************************************************************************************|
+--- | ANUBIS-SYNTAX-OPERATOR: This module contains the syntax of the expressions.        |
+--- |************************************************************************************|
+
+fmod ANUBIS-SYNTAX-OPERATOR is
+    protecting ANUBIS-SYNTAX-BASEXPR .
+
+    *** |================================================================================|
+    *** | Operators                                                                      |
+    *** |================================================================================|
+
+    --- |-----------------------------|
+    --- | Associativity:              |
+    --- | gather(E e) = left to right |
+    --- | gather(e E) = right to left |
+    --- |-----------------------------|
+
+    *** |================================================================================|
+    *** | Operators (Access)                                                             |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // Objects, tuples and list are container in the language and you can access to
+    --- // the data stored inside of them. We can use any value as indexer, if the object
+    --- // supports that type of value as indexer.
+    --- // Examples: listOfAnswers[42]
+    --- //           personObject["name"]
+    --- //           myCrazyObject[("John Smith", 12)]
+    --- //--------------------------------------------------------------------------------
+
+    op _`[_`] : ContainerExpression ValueExpression -> ContainerAccessExpression [ctor prec 2 gather(E e)] .
+    op _`[_`] : ObjectExpression ValueExpression -> ContainerAccessExpression [ctor prec 2 gather(E e)] .
+    op _`[_`] : TupleExpression ValueExpression -> ContainerAccessExpression [ctor prec 2 gather(E e)] .
+    op _`[_`] : ListExpression ValueExpression -> ContainerAccessExpression [ctor prec 2 gather(E e)] .
+    op _`[_`] : TypeIdentifier ValueExpression -> ContainerAccessExpression [ctor prec 2 gather(E e)] .
+
+    --- //--------------------------------------------------------------------------------
+    --- // With lists we can also obtain a sublist with this accesser expression.
+    --- // Examples: var name = "Hello, world.";
+    --- //           var aux = name[2 : 8]; // aux = "llo, w";
+    --- //--------------------------------------------------------------------------------
+
+    op _`[_:_`] : ListExpression IntegerExpression IntegerExpression
+                  -> ListExpression [ctor prec 2 gather(E e e)] .
+
+    --- //--------------------------------------------------------------------------------
+    --- // With lists we can also obtain a sublist with this accesser expression.
+    --- // Examples: var numbers = [1 .. 10];
+    --- //           var aux = numbers[1:10:2]; // aux = [2,4,6,8,10];
+    --- //--------------------------------------------------------------------------------
+
+    op _`[_:_:_`] : ListExpression IntegerExpression IntegerExpression IntegerExpression
+                    -> ListExpression [ctor prec 2 gather(E e e e)] .
+
+    *** |================================================================================|
+    *** | Operators (Container)                                                          |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // Sometimes we need to check if a value is inside a container, that's why we'll
+    --- // use the in operator. We'll support any value expression, but we'll only apply
+    --- // them on a container expression, because doesn't make much sense to ask if a
+    --- // float value contains some data stored inside of it.
+    --- //--------------------------------------------------------------------------------
+
+    op _in_ : ValueExpression ContainerExpression -> BooleanExpression [ctor prec 2 gather(E e)] .
+
+    *** |================================================================================|
+    *** | Operators (Type)                                                               |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // The as operator is used to make casting with types, but if the type doesn't
+    --- // apply on the value will return the null value.
+    --- //--------------------------------------------------------------------------------
+
+    op _as_ : ValueExpression TypeIdentifier -> ValueExpression [ctor prec 2 gather(E e)] .
+
+    --- //--------------------------------------------------------------------------------
+    --- // The is operator just check if a value is of a certain type.
+    --- //--------------------------------------------------------------------------------
+
+    op _is_ : ValueExpression TypeIdentifier -> BooleanExpression [ctor prec 2 gather(E e)] .
+
+    *** |================================================================================|
+    *** | Operators (Arithmetic)                                                         |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // Arithmetic only works with numeric data. And what happens with an object with
+    --- // an arithmetic operator overloaded? You can still use it in an expression,
+    --- // because a variable expression can also be a number.
+    --- //--------------------------------------------------------------------------------
+
+    op _++ : NumericExpression -> NumericExpression [ctor prec 2] .
+    op _-- : NumericExpression -> NumericExpression [ctor prec 2] .
+
+    op ++_ : NumericExpression -> NumericExpression [ctor prec 4] .
+    op --_ : NumericExpression -> NumericExpression [ctor prec 4] .
+    op +_ : NumericExpression -> NumericExpression [ctor prec 4] .
+    op -_ : NumericExpression -> NumericExpression [ctor prec 4] .
+
+    op _*_ : NumericExpression NumericExpression -> NumericExpression [ctor prec 6 gather(E e)] .
+    op _/_ : NumericExpression NumericExpression -> NumericExpression [ctor prec 6 gather(E e)] .
+    op _%_ : NumericExpression NumericExpression -> NumericExpression [ctor prec 6 gather(E e)] .
+
+    op _+_ : NumericExpression NumericExpression -> NumericExpression [ctor prec 8 gather(E e)] .
+    op _-_ : NumericExpression NumericExpression -> NumericExpression [ctor prec 8 gather(E e)] .
+
+    *** |================================================================================|
+    *** | Operators (Relational)                                                         |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // Any value has a relation with other values and we'll receive a boolean result.
+    --- //--------------------------------------------------------------------------------
+
+    op _<_ : ValueExpression ValueExpression -> BooleanExpression [ctor prec 14 gather(E e)] .
+    op _<=_ : ValueExpression ValueExpression -> BooleanExpression [ctor prec 14 gather(E e)] .
+    op _>_ : ValueExpression ValueExpression -> BooleanExpression [ctor prec 14 gather(E e)] .
+    op _>=_ : ValueExpression ValueExpression -> BooleanExpression [ctor prec 14 gather(E e)] .
+
+    op _==_ : ValueExpression ValueExpression -> BooleanExpression [ctor prec 16 gather(E e)] .
+    op _!=_ : ValueExpression ValueExpression -> BooleanExpression [ctor prec 16 gather(E e)] .
+    op _<>_ : ValueExpression ValueExpression -> BooleanExpression [ctor prec 16 gather(E e)] .
+
+    *** |================================================================================|
+    *** | Operators (Logical)                                                            |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // Boolean expressions need some logical.
+    --- //--------------------------------------------------------------------------------
+
+    op !_ : BooleanExpression -> BooleanExpression [ctor prec 4] .
+    op not_ : BooleanExpression -> BooleanExpression [ctor prec 4] .
+
+    op _&&_ : BooleanExpression BooleanExpression -> BooleanExpression [ctor prec 24 gather(E e)] .
+    op _and_ : BooleanExpression BooleanExpression -> BooleanExpression [ctor prec 24 gather(E e)] .
+
+    op _xor_ : BooleanExpression BooleanExpression -> BooleanExpression [ctor prec 26 gather(E e)] .
+
+    op _||_ : BooleanExpression BooleanExpression -> BooleanExpression [ctor prec 28 gather(E e)] .
+    op _or_ : BooleanExpression BooleanExpression -> BooleanExpression [ctor prec 28 gather(E e)] .
+
+    *** |================================================================================|
+    *** | Operators (Bitwise)                                                            |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // Bitwise operators are use only in integer expressions.
+    --- //--------------------------------------------------------------------------------
+
+    op ~_ : IntegerExpression -> IntegerExpression [ctor prec 4] .
+
+    op _<<_ : IntegerExpression IntegerExpression -> IntegerExpression [ctor prec 12 gather(E e)] .
+    op _>>_ : IntegerExpression IntegerExpression -> IntegerExpression [ctor prec 12 gather(E e)] .
+
+    op _&_ : IntegerExpression IntegerExpression -> IntegerExpression [ctor prec 18 gather(E e)] .
+
+    op _^_ : IntegerExpression IntegerExpression -> IntegerExpression [ctor prec 20 gather(E e)] .
+
+    op _|_ : IntegerExpression IntegerExpression -> IntegerExpression [ctor prec 22 gather(E e)] .
+
+    *** |================================================================================|
+    *** | Operators (Assignment)                                                         |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // You can't only assign something into a variable, a property of a container, a
+    --- // value inside a container.
+    --- //--------------------------------------------------------------------------------
+
+    op _+=_ : VariableExpression ValueExpression -> VariableExpression [ctor prec 32 gather(e E)] .
+    op _-=_ : VariableExpression ValueExpression -> VariableExpression [ctor prec 32 gather(e E)] .
+    op _*=_ : VariableExpression ValueExpression -> VariableExpression [ctor prec 32 gather(e E)] .
+    op _/=_ : VariableExpression ValueExpression -> VariableExpression [ctor prec 32 gather(e E)] .
+    op _%=_ : VariableExpression ValueExpression -> VariableExpression [ctor prec 32 gather(e E)] .
+    op _<<=_ : VariableExpression ValueExpression -> VariableExpression [ctor prec 32 gather(e E)] .
+    op _>>=_ : VariableExpression ValueExpression -> VariableExpression [ctor prec 32 gather(e E)] .
+    op _&=_ : VariableExpression ValueExpression -> VariableExpression [ctor prec 32 gather(e E)] .
+    op _^=_ : VariableExpression ValueExpression -> VariableExpression [ctor prec 32 gather(e E)] .
+    op _|=_ : VariableExpression ValueExpression -> VariableExpression [ctor prec 32 gather(e E)] .
+
+    *** |================================================================================|
+    *** | Operators (Conditional)                                                        |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // The classic C conditional operator. I'm not sure if is it a good idea to have
+    --- // this one inside the language. Anyway we'll try to use it and see the results.
+    --- //--------------------------------------------------------------------------------
+
+    op _?_:_ : BooleanExpression ValueExpression ValueExpression ->
+               ValueExpression [ctor prec 30 gather(e E E)] .
+
+    *** |================================================================================|
+    *** | Operators (Member)                                                             |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // Data are objects in the languaje, so they can have members to access.
+    --- //--------------------------------------------------------------------------------
+
+    op _._ : ValueExpression Identifier -> MemberAccessExpression [ctor prec 2 gather(E e)] .
+
+    *** |================================================================================|
+    *** | Variables                                                                      |
+    *** |================================================================================|
+
+    vars LVE RVE : ValueExpression .
+    vars LBE RBE : BooleanExpression .
+
+    *** |================================================================================|
+    *** | Equations                                                                      |
+    *** |================================================================================|
+
+    eq LVE != RVE = LVE <> RVE .
+    eq ! LBE = not LBE .
+    eq LBE && RBE = LBE and RBE .
+    eq LBE || RBE = LBE or RBE .
+
+endfm

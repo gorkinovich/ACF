@@ -1,0 +1,473 @@
+--- **************************************************************************************
+--- * Anubis Programming Language
+--- * Copyright (c) 2014-2015 Gorka Suárez García
+--- *
+--- * Permission is hereby granted, free of charge, to any person obtaining a copy
+--- * of this software and associated documentation files (the "Software"), to deal
+--- * in the Software without restriction, including without limitation the rights
+--- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+--- * copies of the Software, and to permit persons to whom the Software is
+--- * furnished to do so, subject to the following conditions:
+--- *
+--- * The above copyright notice and this permission notice shall be included in
+--- * all copies or substantial portions of the Software.
+--- *
+--- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+--- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+--- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+--- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+--- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+--- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+--- * DEALINGS IN THE SOFTWARE.
+--- **************************************************************************************
+
+--- |************************************************************************************|
+--- | ANUBIS-SYNTAX-COMPLEXPR: This module contains the syntax of the expressions.       |
+--- |************************************************************************************|
+
+fmod ANUBIS-SYNTAX-COMPLEXPR is
+    protecting ANUBIS-SYNTAX-BASEXPR .
+
+    *** |================================================================================|
+    *** | Sorts                                                                          |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // Objects and lists are complex concepts that we'll allow to create literal
+    --- // expressions inside the code. To do that, we'll need these types.
+    --- //--------------------------------------------------------------------------------
+
+    sorts ObjectContainerSequence ObjectFieldDeclaration ObjectFieldName
+          ListComprehensionTerms ListComprehensionAssign ListComprehensionCondition .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Another complex concept is the match expressions to allow to the user a way
+    --- // to divide data into another subexpressions.
+    --- //--------------------------------------------------------------------------------
+
+    sorts MatchExpression AssignMatchExpression VOTMatchExpression
+          VariableMatchExpression TypedMatchExpression TupleOfVariableExpressions
+          ListMatchExpression IdentifierWithType ListMatchExpressionWithType
+          TupleOfVariableExpressionsWithType .
+
+    --- //--------------------------------------------------------------------------------
+    --- // To be able to do some of the previous concepts we'll need to specify subtypes
+    --- // from the sequence of expressions.
+    --- //--------------------------------------------------------------------------------
+
+    sorts SequenceOf2Expressions SequenceOf2IntegerExpressions
+          SequenceOfMatchExpressions SequenceOfVariableExpressions
+          SequenceOfTypedExpressions SequenceOfVOTMatchExpressions
+          SequenceOf2VariableExpressions SequenceWithMatchExpressions
+          SequenceOfValueExpressions .
+
+    *** |================================================================================|
+    *** | Subsorts                                                                       |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // We're going to use the JSON format to make object literals, starting with a
+    --- // way to give name to the field and finishing with a way to express a sequence
+    --- // of field declarations.
+    --- //--------------------------------------------------------------------------------
+
+    subsort Identifier < ObjectFieldName .
+    subsort ObjectFieldDeclaration < ObjectContainerSequence .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Functional languages like Haskell have list comprehension, a nice way to
+    --- // create list of data with a single expression.
+    --- //--------------------------------------------------------------------------------
+
+    subsort ListComprehensionAssign ListComprehensionCondition < ListComprehensionTerms .
+    subsort BooleanExpression < ListComprehensionCondition .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Match expressions are divided in 3 subtypes: assignment match, match with only
+    --- // identifiers (used to give name to the variables) and match with at least one
+    --- // identifier inside the expression with a type.
+    --- //--------------------------------------------------------------------------------
+
+    subsort MatchExpression < Expression .
+
+    subsort AssignMatchExpression VOTMatchExpression < MatchExpression .
+    subsort VariableMatchExpression TypedMatchExpression < VOTMatchExpression .
+    subsort Identifier ListMatchExpression
+            TupleOfVariableExpressions < VariableMatchExpression .
+    subsort IdentifierWithType ListMatchExpressionWithType
+            TupleOfVariableExpressionsWithType < TypedMatchExpression .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Some of the match expressions also fit into another expression types.
+    --- //--------------------------------------------------------------------------------
+
+    subsort TupleOfVariableExpressions TupleOfVariableExpressionsWithType < TupleExpression .
+    subsort ListMatchExpression ListMatchExpressionWithType < ListExpression StringExpression .
+
+    --- //--------------------------------------------------------------------------------
+    --- // We have to understand that sometimes, in Maude, we'll have to get some types
+    --- // that allow to specify the same data that other one and create a hierarchy
+    --- // with them, to avoid ambiguous patterns. It doesn't care if the concepts
+    --- // sometimes doesn't seem to have sense, we need to do it this way or suffer.
+    --- //--------------------------------------------------------------------------------
+
+    subsort SequenceOf2IntegerExpressions < SequenceOf2Expressions <
+            SequenceOfValueExpressions < SequenceOfExpressions .
+    subsort SequenceOfMatchExpressions < SequenceWithMatchExpressions < SequenceOfExpressions .
+    subsort SequenceOfVariableExpressions SequenceOfTypedExpressions
+            SequenceOfVOTMatchExpressions < SequenceOfMatchExpressions .
+    subsort SequenceOf2VariableExpressions < SequenceOfVariableExpressions
+            SequenceOf2IntegerExpressions SequenceOf2Expressions .
+
+    *** |================================================================================|
+    *** | Operators                                                                      |
+    *** |================================================================================|
+
+    --- |-----------------------------|
+    --- | Associativity:              |
+    --- | gather(E e) = left to right |
+    --- | gather(e E) = right to left |
+    --- |-----------------------------|
+
+    *** |================================================================================|
+    *** | Operators (Match)                                                              |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // To assign types to some expressions, we'll need some tools inside the
+    --- // language, so we'll use this operator to create match expressions that will
+    --- // be used when we create variables inside the code.
+    --- //--------------------------------------------------------------------------------
+
+    op _->_ : Identifier TypeIdentifier -> IdentifierWithType [ctor prec 1] .
+    op _->_ : ListMatchExpression TypeIdentifier -> ListMatchExpressionWithType [ctor prec 1] .
+
+    *** |================================================================================|
+    *** | Operators (Object)                                                             |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // Objects are use to have complex data in the language. You can define a literal
+    --- // object as an expression to create a new one with the JSON style, but now with
+    --- // tuples. (OMG I can't hold my satisfaction to use tuple instead of a list of
+    --- // size N to represent the same concept, yeah! xD)
+    --- // Example: { name : "The Doctor", number : 12 }
+    --- //--------------------------------------------------------------------------------
+
+    op _:_ : ObjectFieldName ValueExpression -> ObjectFieldDeclaration [ctor prec 1] .
+    op _`,_ : ObjectContainerSequence ObjectContainerSequence -> ObjectContainerSequence
+              [ctor prec 40 gather(E e) format (o o os o)] .
+    op `{_`} : ObjectContainerSequence -> ObjectExpression [ctor prec 1 format (o os os o)] .
+
+    *** |================================================================================|
+    *** | Operators (Tuple)                                                              |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // Tuples are used to have data with some defined structure. It's similar to the
+    --- // structures in C, but the fields doesn't have name in this case.
+    --- // Example: < "PI", 3.14 >
+    --- //--------------------------------------------------------------------------------
+
+    op <_> : SequenceOfExpressions -> TupleExpression [ctor prec 1] .
+
+    *** |================================================================================|
+    *** | Operators (List)                                                               |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // Lists are containers of variable size of data.
+    --- // Example: [ 1, 2, 3, 4, 5 ]
+    --- //--------------------------------------------------------------------------------
+
+    op `[_`] : ValueExpression -> ListExpression [ctor prec 1] .
+    op `[_`] : SequenceOfExpressions -> ListExpression [ctor prec 1] .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Example: [ 1 .. 5 ] == [ 1, 2, 3, 4, 5 ]
+    --- //--------------------------------------------------------------------------------
+
+    op `[_.._`] : IntegerExpression IntegerExpression -> ListExpression [ctor prec 1] .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Example: [ 1, 3 .. 5 ] == [ 1, 3, 5 ]
+    --- //--------------------------------------------------------------------------------
+
+    op `[_.._`] : SequenceOf2IntegerExpressions IntegerExpression -> ListExpression [ctor prec 1] .
+
+    --- //--------------------------------------------------------------------------------
+    --- // Lists comprehension are cool, isn't it? Ok, they are lot nice to use than to
+    --- // specify, but hey man, they deserve to exist... :D
+    --- // Examples: [ x <| x <- list ]
+    --- //           [ x <| x <- list <; expression(x) ]
+    --- //           [ ( x, y ) <| x <- list1 <; y <- list2 ]
+    --- //--------------------------------------------------------------------------------
+
+    op _<-_ : MatchExpression ListExpression -> ListComprehensionAssign [ctor prec 38] .
+    op _<;_ : ListComprehensionTerms ListComprehensionTerms -> ListComprehensionTerms
+              [ctor prec 60 gather(E e) format (o o os o)] .
+    op `[_<|_`] : ValueExpression ListComprehensionTerms -> ListExpression [ctor prec 1] .
+
+    --- //--------------------------------------------------------------------------------
+    --- // You can insert an element into a list at the front with the : operator. It's
+    --- // also used into the match expressions when you assign a value.
+    --- // Example: 42 :: listOfAnswers
+    --- //--------------------------------------------------------------------------------
+
+    op _::_ : ValueExpression ListExpression -> ListExpression [ctor prec 10 gather(E e)] .
+
+    --- //--------------------------------------------------------------------------------
+    --- // You can join a couple of lists into one with the plus operator. It also works
+    --- // with the strings and the characters.
+    --- // Example: list1 $ list2
+    --- //          "hello" $ " world"
+    --- //          "abc" $ 'd'
+    --- //--------------------------------------------------------------------------------
+
+    op _$_ : ListExpression ListExpression -> ListExpression [ctor prec 8 gather(E e)] .
+    op _$_ : StringExpression StringExpression -> StringExpression [ctor prec 8 gather(E e)] .
+    op _$_ : CharacterExpression StringExpression -> StringExpression [ctor prec 8 gather(E e)] .
+    op _$_ : StringExpression CharacterExpression -> StringExpression [ctor prec 8 gather(E e)] .
+
+    *** |================================================================================|
+    *** | Operators (Assignment)                                                         |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // The assignment is a complex instruction in this language, because we're going
+    --- // to support match expressions when you try to assign a value.
+    --- //--------------------------------------------------------------------------------
+
+    op _=_ : ContainerAccessExpression ValueExpression -> VariableExpression [ctor prec 32 gather(e E)] .
+    op _=_ : MemberAccessExpression ValueExpression -> VariableExpression [ctor prec 32 gather(e E)] .
+    op _=_ : MatchExpression ValueExpression -> AssignMatchExpression [ctor prec 32 gather(e E)] .
+
+    *** |================================================================================|
+    *** | Operators                                                                      |
+    *** |================================================================================|
+
+    op isSequenceWithMatchExpressions : SequenceOfExpressions -> Bool .
+    op isSequenceOfMatchExpressions : SequenceOfExpressions -> Bool .
+    op isSequenceOfVariableMatchExpressions : SequenceOfExpressions -> Bool .
+    op isSequenceOfTypedMatchExpressions : SequenceOfExpressions -> Bool .
+    op isSequenceOfVOTMatchExpressions : SequenceOfExpressions -> Bool .
+    op isSequenceOfValueExpressions : SequenceOfExpressions -> Bool .
+
+    op anyMatchExpressionInSequence : SequenceOfExpressions -> Bool .
+    op anyVariableMatchExpressionInSequence : SequenceOfExpressions -> Bool .
+    op anyTypedMatchExpressionInSequence : SequenceOfExpressions -> Bool .
+
+    *** |================================================================================|
+    *** | Variables                                                                      |
+    *** |================================================================================|
+
+    vars LEX REX : Expression .
+    vars LVE RVE : ValueExpression .
+    vars LIE RIE : IntegerExpression .
+    vars LBE RBE : BooleanExpression .
+
+    vars LME RME : MatchExpression .
+    vars LID RID : Identifier .
+    vars LIWT RIWT : IdentifierWithType .
+
+    var SOE : SequenceOfExpressions .
+
+    *** |================================================================================|
+    *** | Memberships                                                                    |
+    *** |================================================================================|
+
+    mb LID :: RID : ListMatchExpression .
+    mb LIWT :: RID : ListMatchExpressionWithType .
+    mb LID :: RIWT : ListMatchExpressionWithType .
+    mb LIWT :: RIWT : ListMatchExpressionWithType .
+
+    mb [ LID ] : ListMatchExpression .
+    mb [ LIWT ] : ListMatchExpressionWithType .
+
+    cmb [ SOE ] : ListMatchExpression
+        if isSequenceOfVariableMatchExpressions(SOE) .
+
+    cmb [ SOE ] : ListMatchExpressionWithType
+        if isSequenceOfMatchExpressions(SOE) and
+           anyTypedMatchExpressionInSequence(SOE) .
+
+    cmb < SOE > : TupleOfVariableExpressions
+        if isSequenceOfVariableMatchExpressions(SOE) .
+
+    cmb < SOE > : TupleOfVariableExpressionsWithType
+        if isSequenceOfMatchExpressions(SOE) and
+           anyTypedMatchExpressionInSequence(SOE) .
+
+    mb LVE, RVE : SequenceOf2Expressions .
+    mb LIE, RIE : SequenceOf2IntegerExpressions .
+    mb LID, RID : SequenceOf2VariableExpressions .
+
+    cmb SOE : SequenceWithMatchExpressions
+        if isSequenceWithMatchExpressions(SOE) .
+
+    cmb SOE : SequenceOfMatchExpressions
+        if isSequenceOfMatchExpressions(SOE) .
+
+    cmb SOE : SequenceOfVariableExpressions
+        if isSequenceOfVariableMatchExpressions(SOE) .
+
+    cmb SOE : SequenceOfTypedExpressions
+        if isSequenceOfTypedMatchExpressions(SOE) .
+
+    cmb SOE : SequenceOfVOTMatchExpressions
+        if isSequenceOfVOTMatchExpressions(SOE) .
+
+    cmb SOE : SequenceOfValueExpressions
+        if isSequenceOfValueExpressions(SOE) .
+
+    *** |================================================================================|
+    *** | Equations (Is Sequence)                                                        |
+    *** |================================================================================|
+
+    eq isSequenceWithMatchExpressions(SOE) = anyMatchExpressionInSequence(SOE) .
+
+    eq isSequenceOfMatchExpressions(LEX, REX) =
+        if (LEX :: SequenceOfExpressions) and (REX :: SequenceOfExpressions) then
+            isSequenceOfMatchExpressions(LEX) and
+            isSequenceOfMatchExpressions(REX)
+        else if LEX :: SequenceOfExpressions then
+            if (REX :: MatchExpression) then
+                isSequenceOfMatchExpressions(LEX)
+            else
+                false
+            fi
+        else if REX :: SequenceOfExpressions then
+            if (LEX :: MatchExpression) then
+                isSequenceOfMatchExpressions(REX)
+            else
+                false
+            fi
+        else
+            (LEX :: MatchExpression) and (REX :: MatchExpression)
+        fi fi fi .
+
+    eq isSequenceOfVariableMatchExpressions(LEX, REX) =
+        if (LEX :: SequenceOfExpressions) and (REX :: SequenceOfExpressions) then
+            isSequenceOfVariableMatchExpressions(LEX) and
+            isSequenceOfVariableMatchExpressions(REX)
+        else if LEX :: SequenceOfExpressions then
+            if (REX :: VariableMatchExpression) then
+                isSequenceOfVariableMatchExpressions(LEX)
+            else
+                false
+            fi
+        else if REX :: SequenceOfExpressions then
+            if (LEX :: VariableMatchExpression) then
+                isSequenceOfVariableMatchExpressions(REX)
+            else
+                false
+            fi
+        else
+            (LEX :: VariableMatchExpression) and (REX :: VariableMatchExpression)
+        fi fi fi .
+
+    eq isSequenceOfTypedMatchExpressions(LEX, REX) =
+        if (LEX :: SequenceOfExpressions) and (REX :: SequenceOfExpressions) then
+            isSequenceOfTypedMatchExpressions(LEX) and
+            isSequenceOfTypedMatchExpressions(REX)
+        else if LEX :: SequenceOfExpressions then
+            if (REX :: TypedMatchExpression) then
+                isSequenceOfTypedMatchExpressions(LEX)
+            else
+                false
+            fi
+        else if REX :: SequenceOfExpressions then
+            if (LEX :: TypedMatchExpression) then
+                isSequenceOfTypedMatchExpressions(REX)
+            else
+                false
+            fi
+        else
+            (LEX :: TypedMatchExpression) and (REX :: TypedMatchExpression)
+        fi fi fi .
+
+    eq isSequenceOfVOTMatchExpressions(LEX, REX) =
+        if (LEX :: SequenceOfExpressions) and (REX :: SequenceOfExpressions) then
+            isSequenceOfVOTMatchExpressions(LEX) and
+            isSequenceOfVOTMatchExpressions(REX)
+        else if LEX :: SequenceOfExpressions then
+            if (REX :: VariableMatchExpression) or (REX :: TypedMatchExpression) then
+                isSequenceOfVOTMatchExpressions(LEX)
+            else
+                false
+            fi
+        else if REX :: SequenceOfExpressions then
+            if (LEX :: VariableMatchExpression) or (LEX :: TypedMatchExpression) then
+                isSequenceOfVOTMatchExpressions(REX)
+            else
+                false
+            fi
+        else
+            ((LEX :: VariableMatchExpression) or (LEX :: TypedMatchExpression)) and
+            ((REX :: VariableMatchExpression) or (REX :: TypedMatchExpression))
+        fi fi fi .
+
+    eq isSequenceOfValueExpressions(LEX, REX) =
+        if (LEX :: SequenceOfExpressions) and (REX :: SequenceOfExpressions) then
+            isSequenceOfValueExpressions(LEX) and
+            isSequenceOfValueExpressions(REX)
+        else if LEX :: SequenceOfExpressions then
+            if (REX :: ValueExpression) then
+                isSequenceOfValueExpressions(LEX)
+            else
+                false
+            fi
+        else if REX :: SequenceOfExpressions then
+            if (LEX :: ValueExpression) then
+                isSequenceOfValueExpressions(REX)
+            else
+                false
+            fi
+        else
+            (LEX :: ValueExpression) and (REX :: ValueExpression)
+        fi fi fi .
+
+    *** |================================================================================|
+    *** | Equations (Any In Sequence)                                                    |
+    *** |================================================================================|
+
+    eq anyMatchExpressionInSequence(LEX, REX) =
+        if (LEX :: MatchExpression) or (REX :: MatchExpression) then
+            true
+        else if (LEX :: SequenceOfExpressions) and (REX :: SequenceOfExpressions ) then
+            anyMatchExpressionInSequence(LEX) or anyMatchExpressionInSequence(REX)
+        else if LEX :: SequenceOfExpressions then
+            anyMatchExpressionInSequence(LEX)
+        else if REX :: SequenceOfExpressions then
+            anyMatchExpressionInSequence(REX)
+        else
+            false
+        fi fi fi fi .
+
+    eq anyVariableMatchExpressionInSequence(LEX, REX) =
+        if (LEX :: VariableMatchExpression) or (REX :: VariableMatchExpression) then
+            true
+        else if (LEX :: SequenceOfExpressions) and (REX :: SequenceOfExpressions ) then
+            anyVariableMatchExpressionInSequence(LEX) or anyVariableMatchExpressionInSequence(REX)
+        else if LEX :: SequenceOfExpressions then
+            anyVariableMatchExpressionInSequence(LEX)
+        else if REX :: SequenceOfExpressions then
+            anyVariableMatchExpressionInSequence(REX)
+        else
+            false
+        fi fi fi fi .
+
+    eq anyTypedMatchExpressionInSequence(LEX, REX) =
+        if (LEX :: TypedMatchExpression) or (REX :: TypedMatchExpression) then
+            true
+        else if (LEX :: SequenceOfExpressions) and (REX :: SequenceOfExpressions ) then
+            anyTypedMatchExpressionInSequence(LEX) or anyTypedMatchExpressionInSequence(REX)
+        else if LEX :: SequenceOfExpressions then
+            anyTypedMatchExpressionInSequence(LEX)
+        else if REX :: SequenceOfExpressions then
+            anyTypedMatchExpressionInSequence(REX)
+        else
+            false
+        fi fi fi fi .
+
+endfm

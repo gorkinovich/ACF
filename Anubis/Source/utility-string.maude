@@ -1,0 +1,243 @@
+--- **************************************************************************************
+--- * Anubis Programming Language
+--- * Copyright (c) 2014-2015 Gorka Suárez García
+--- *
+--- * Permission is hereby granted, free of charge, to any person obtaining a copy
+--- * of this software and associated documentation files (the "Software"), to deal
+--- * in the Software without restriction, including without limitation the rights
+--- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+--- * copies of the Software, and to permit persons to whom the Software is
+--- * furnished to do so, subject to the following conditions:
+--- *
+--- * The above copyright notice and this permission notice shall be included in
+--- * all copies or substantial portions of the Software.
+--- *
+--- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+--- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+--- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+--- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+--- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+--- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+--- * DEALINGS IN THE SOFTWARE.
+--- **************************************************************************************
+
+--- |************************************************************************************|
+--- | ANUBIS-UTILITY-STRING: This module contains utility operators.                     |
+--- |************************************************************************************|
+
+fmod ANUBIS-UTILITY-STRING is
+    protecting INT .
+    protecting STRING .
+
+    *** |================================================================================|
+    *** | Sorts                                                                          |
+    *** |================================================================================|
+
+    sort StringPair .
+
+    *** |================================================================================|
+    *** | Operators                                                                      |
+    *** |================================================================================|
+
+    op spair : String String -> StringPair [ctor] .
+
+    op isUnderscore : Char -> Bool .
+    op isUpperLetter : Char -> Bool .
+    op isLowerLetter : Char -> Bool .
+    op isLetter : Char -> Bool .
+    op isDigit : Char -> Bool .
+    op isHexDigit : Char -> Bool .
+    op isUnderscoreOrLetterOrDigit : Char -> Bool .
+
+    op containsOnlyDigits : String -> Bool .
+    op containsOnlyDigits' : String Nat Nat -> Bool .
+
+    op containsOnlyHexDigits : String -> Bool .
+    op containsOnlyHexDigits' : String Nat Nat -> Bool .
+
+    op containsOnlyULD : String -> Bool .
+    op containsOnlyULD' : String Nat Nat -> Bool .
+
+    op charAt : String Nat -> String .
+    op first : String -> String .
+    op first : String Nat -> String .
+    op last : String -> String .
+    op last : String Nat -> String .
+    op skip : String Nat -> String .
+    op removeFirst : String -> String .
+    op removeLast : String -> String .
+
+    op startsWith : String String -> Bool .
+    op endsWith : String String -> Bool .
+
+    op findCharPos : String String -> Int .
+    op findCharPos' : String String Nat -> Int .
+
+    op mangleEscapeCodes : String -> String .
+    op unmangleEscapeCodes : String -> String .
+
+    op split : String String -> StringPair .
+
+    *** |================================================================================|
+    *** | Variables                                                                      |
+    *** |================================================================================|
+
+    var I : Int .
+    var CH : Char .
+    vars S S' : String .
+    vars NIDX NEND : Nat .
+
+    *** |================================================================================|
+    *** | Equations                                                                      |
+    *** |================================================================================|
+
+    --- //--------------------------------------------------------------------------------
+    --- // These functions check if a character follows some rules.
+    --- //--------------------------------------------------------------------------------
+
+    eq isUnderscore(CH) = CH == "_" .
+    eq isUpperLetter(CH) = ("A" <= CH and CH <= "Z") or (CH == "Ñ") or (CH == "Á") or
+                           (CH == "Í") or (CH == "Ú") or (CH == "É") or (CH == "Ó") .
+    eq isLowerLetter(CH) = ("a" <= CH and CH <= "z") or (CH == "ñ") or (CH == "á") or
+                           (CH == "í") or (CH == "ú") or (CH == "é") or (CH == "ó") .
+    eq isLetter(CH) = isUpperLetter(CH) or isLowerLetter(CH) .
+    eq isDigit(CH) = "0" <= CH and CH <= "9" .
+    eq isHexDigit(CH) = isDigit(CH) or ("A" <= CH and CH <= "F") or ("a" <= CH and CH <= "f") .
+    eq isUnderscoreOrLetterOrDigit(CH) = isUnderscore(CH) or isLetter(CH) or isDigit(CH) .
+
+    --- //--------------------------------------------------------------------------------
+    --- // This function checks if a string contains only digits.
+    --- //--------------------------------------------------------------------------------
+
+    eq containsOnlyDigits(S) = containsOnlyDigits'(S, 0, length(S)) .
+    eq containsOnlyDigits'(S, NIDX, NEND) =
+        if NIDX >= NEND then
+            true
+        else
+            if isDigit(charAt(S, NIDX)) then
+                containsOnlyDigits'(S, s(NIDX), NEND)
+            else
+                false
+            fi
+        fi .
+
+    --- //--------------------------------------------------------------------------------
+    --- // This function checks if a string contains only hexadecimal digits.
+    --- //--------------------------------------------------------------------------------
+
+    eq containsOnlyHexDigits(S) = containsOnlyHexDigits'(S, 0, length(S)) .
+    eq containsOnlyHexDigits'(S, NIDX, NEND) =
+        if NIDX >= NEND then
+            true
+        else
+            if isHexDigit(charAt(S, NIDX)) then
+                containsOnlyHexDigits'(S, s(NIDX), NEND)
+            else
+                false
+            fi
+        fi .
+
+    --- //--------------------------------------------------------------------------------
+    --- // This function checks if a string contains only digits, letters or the
+    --- // underscore character. We'll use this to validate possible identifiers.
+    --- //--------------------------------------------------------------------------------
+
+    eq containsOnlyULD(S) = containsOnlyULD'(S, 0, length(S)) .
+    eq containsOnlyULD'(S, NIDX, NEND) =
+        if NIDX >= NEND then
+            true
+        else
+            if isUnderscoreOrLetterOrDigit(charAt(S, NIDX)) then
+                containsOnlyULD'(S, s(NIDX), NEND)
+            else
+                false
+            fi
+        fi .
+
+    --- //--------------------------------------------------------------------------------
+    --- // These functions are used to make easier to work with substrings.
+    --- //--------------------------------------------------------------------------------
+
+    eq charAt(S, NIDX) = substr(S, NIDX, 1) .
+    eq first(S) = charAt(S, 0) .
+    eq first(S, NEND) = substr(S, 0, NEND) .
+    eq last(S) = charAt(S, sd(length(S), 1)) .
+    eq last(S, NEND) = substr(S, sd(length(S), NEND), NEND) .
+    eq skip(S, NIDX) = substr(S, NIDX, sd(length(S), NIDX)) .
+    eq removeFirst(S) = substr(S, 1, sd(length(S), 1)) .
+    eq removeLast(S) = substr(S, 0, sd(length(S), 1)) .
+
+    eq startsWith(S, S') = first(S, length(S')) == S' .
+    eq endsWith(S, S') = last(S, length(S')) == S' .
+
+    eq findCharPos(S, S') = findCharPos'(S, S', 0) .
+    eq findCharPos'("", S', NIDX) = -1 .
+    eq findCharPos'(S, S', NIDX) =
+        if startsWith(S, S') then
+            NIDX
+        else
+            findCharPos'(removeFirst(S), S', NIDX + 1)
+        fi [owise] .
+
+    --- //--------------------------------------------------------------------------------
+    --- // These functions are used to put or quit escape codes in the strings.
+    --- //--------------------------------------------------------------------------------
+
+    eq mangleEscapeCodes("") = "" .
+    eq mangleEscapeCodes(S) =
+        if first(S) == "\0" then
+            "\\0" + mangleEscapeCodes(skip(S, 1))
+        else if first(S) == "\\" then
+            "\\\\" + mangleEscapeCodes(skip(S, 1))
+        else if first(S) == "\'" then
+            "\\\'" + mangleEscapeCodes(skip(S, 1))
+        else if first(S) == "\"" then
+            "\\\"" + mangleEscapeCodes(skip(S, 1))
+        else if first(S) == "\n" then
+            "\\n" + mangleEscapeCodes(skip(S, 1))
+        else if first(S) == "\t" then
+            "\\t" + mangleEscapeCodes(skip(S, 1))
+        else if first(S) == "\r" then
+            "\\r" + mangleEscapeCodes(skip(S, 1))
+        else
+            first(S) + mangleEscapeCodes(skip(S, 1))
+        fi fi fi fi fi fi fi .
+
+    eq unmangleEscapeCodes("") = "" .
+    eq unmangleEscapeCodes(S) =
+        if first(S) == "\\" then
+            if first(skip(S, 1)) == "0" then
+                "\0" + mangleEscapeCodes(skip(S, 2))
+            else if first(skip(S, 1)) == "\\" then
+                "\\" + mangleEscapeCodes(skip(S, 2))
+            else if first(skip(S, 1)) == "\'" then
+                "\'" + mangleEscapeCodes(skip(S, 2))
+            else if first(skip(S, 1)) == "\"" then
+                "\"" + mangleEscapeCodes(skip(S, 2))
+            else if first(skip(S, 1)) == "n" then
+                "\n" + mangleEscapeCodes(skip(S, 2))
+            else if first(skip(S, 1)) == "t" then
+                "\t" + mangleEscapeCodes(skip(S, 2))
+            else if first(skip(S, 1)) == "r" then
+                "\r" + mangleEscapeCodes(skip(S, 2))
+            else
+                mangleEscapeCodes(skip(S, 1))
+            fi fi fi fi fi fi fi
+        else
+            first(S) + mangleEscapeCodes(skip(S, 1))
+        fi .
+
+    --- //--------------------------------------------------------------------------------
+    --- // These function is used to split an string into a pair.
+    --- //--------------------------------------------------------------------------------
+
+    eq split(S, "") = spair(S, "") .
+    ceq split(S, S') =
+        if I < 0 then
+            spair(S, "")
+        else
+            spair(first(S, I), last(S, sd(length(S), s(I))))
+        fi
+        if I := findCharPos(S, S') [owise] .
+
+endfm

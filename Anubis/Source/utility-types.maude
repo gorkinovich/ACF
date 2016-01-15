@@ -1,0 +1,90 @@
+--- **************************************************************************************
+--- * Anubis Programming Language
+--- * Copyright (c) 2014-2015 Gorka Suárez García
+--- *
+--- * Permission is hereby granted, free of charge, to any person obtaining a copy
+--- * of this software and associated documentation files (the "Software"), to deal
+--- * in the Software without restriction, including without limitation the rights
+--- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+--- * copies of the Software, and to permit persons to whom the Software is
+--- * furnished to do so, subject to the following conditions:
+--- *
+--- * The above copyright notice and this permission notice shall be included in
+--- * all copies or substantial portions of the Software.
+--- *
+--- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+--- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+--- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+--- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+--- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+--- * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+--- * DEALINGS IN THE SOFTWARE.
+--- **************************************************************************************
+
+--- |************************************************************************************|
+--- | ANUBIS-UTILITY-TYPES: This module contains utility operators.                      |
+--- |************************************************************************************|
+
+fmod ANUBIS-UTILITY-TYPES is
+    protecting CONVERSION .
+
+    *** |================================================================================|
+    *** | Operators                                                                      |
+    *** |================================================================================|
+
+    op hexStrToChar : String -> String .
+
+    op hexStrToInt : String -> Int .
+    op hexStrToFloat : String -> Float .
+
+    op intStrToInt : String -> Int .
+    op intStrToFloat : String -> Float .
+
+    op intToFloat : Int -> Float .
+    op intToIntStr : Int -> String .
+
+    op floatToInt : Float -> Int .
+    op floatToStr : Float -> String .
+
+    op strToFloat : String -> Float .
+
+    op clearNumberString : String -> String .
+
+    *** |================================================================================|
+    *** | Variables                                                                      |
+    *** |================================================================================|
+
+    var S : String .
+    var I : Int .
+    var F : Float .
+
+    *** |================================================================================|
+    *** | Equations                                                                      |
+    *** |================================================================================|
+
+    eq hexStrToChar(S) = char(rat(clearNumberString(S), 16)) .
+
+    eq hexStrToInt(S) = rat(clearNumberString(S), 16) .
+    eq hexStrToFloat(S) = float(rat(clearNumberString(S), 16)) .
+
+    eq intStrToInt(S) = rat(clearNumberString(S), 10) .
+    eq intStrToFloat(S) = float(rat(clearNumberString(S), 10)) .
+
+    eq intToFloat(I) = float(I / 1) .
+    eq intToIntStr(I) = string(I, 10) .
+
+    eq floatToInt(F) = trunc(rat(F)) .
+    eq floatToStr(F) = string(F) .
+
+    eq strToFloat(S) = float(S) .
+
+    eq clearNumberString(S) =
+        if length(S) <= 1 then
+            S
+        else if substr(S, 0, 1) == "0" then
+            clearNumberString(substr(S, 1, sd(length(S), 1)))
+        else
+            S
+        fi fi .
+
+endfm
